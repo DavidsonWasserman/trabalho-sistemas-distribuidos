@@ -53,15 +53,15 @@ Ativa -up-> NaoAutenticado : logout /\napagar cookie
 Ativa -up-> NaoAutenticado : token rejeitado\n(inválido ou usuário inexistente) /\nresponder 401 e apagar cookie
 
 note right of Expirada
-  No Nooneurose o cookie dura 7 dias
-  e o token 2 h: por isso este estado existe.
+  O cookie dura 7 dias e o token 2 h:
+  por isso este estado existe.
 end note
 
 legend bottom left
   Em "Sessão ativa" o usuário reutiliza o mesmo token em todas as
   requisições, nos dois bancos, sem autenticar de novo.
   A confirmar: papéis e permissões (quem consulta, quem envia fotos).
-  Valores (JWT de 2 h, 10 tentativas em 15 min, bcrypt) vêm do
-  código de autenticação do Nooneurose, que será reaproveitado.
+  Valores (JWT de 2 h, 10 tentativas em 15 min, bcrypt) são os
+  do serviço de autenticação implementado.
 endlegend
 @enduml

@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "lib": ["ES2022"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@src/*": ["./src/*"]
+    },
+    "useUnknownInCatchVariables": false,
+    "types": ["vitest/globals"],
+    "outDir": "./dist",
+  },
+  "ts-node": {
+    "swc": false,
+    "require": ["tsconfig-paths/register", "dotenv/config"],
+  },
+  "include": [
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "scripts",
+    "eslint.config.ts",
+    "vitest.config.mts" ],
+  "exclude": ["src/public/*"]
+}

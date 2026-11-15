@@ -1,0 +1,47 @@
+# Sistema do trabalho de Sistemas Distribuídos.
+# Por enquanto: banco de usuários + microsserviço de autenticação + Nginx.
+# Os próximos serviços (InfluxDB, armazenamento de fotos, análise) entram aqui depois.
+
+# Nome próprio do projeto, para não se misturar com outros projetos Docker do notebook.
+name: sistemas-distribuidos
+
+services:
+
+  auth-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: auth
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:?defina AUTH_DB_PASSWORD no arquivo .env}
+      POSTGRES_DB: auth
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth -d auth"]
+      interval: 5s
+      retries: 10
+
+  auth-service:
+    build:
+      context: ./auth-service
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgres://auth:${AUTH_DB_PASSWORD:?defina AUTH_DB_PASSWORD no arquivo .env}@auth-db:5432/auth
+      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET no arquivo .env}
+      FRONTEND_URL: http://localhost:8080
+      JET_LOGGER_MODE: console
+    depends_on:
+      auth-db:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:alpine
+    depends_on:
+      - auth-service
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - 8080:80
+
+volumes:
+  auth-db-data:
