@@ -1,0 +1,67 @@
+@startuml diagrama_estado_sessao
+' Diagrama de estados UML - sessão do usuário no microsserviço de autenticação
+' Abrir em: https://www.plantuml.com/plantuml (colar o texto) ou extensão PlantUML do VS Code
+
+title Diagrama de estados — Sessão do usuário\n(microsserviço de autenticação e autorização)
+
+hide empty description
+skinparam shadowing false
+skinparam defaultFontName "DejaVu Sans"
+skinparam defaultFontSize 13
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam state {
+  BackgroundColor #F7F9FC
+  BorderColor #33475B
+  FontStyle bold
+  StartColor #33475B
+  EndColor #33475B
+}
+skinparam note {
+  BackgroundColor #FFF8E1
+  BorderColor #B8860B
+}
+
+state "Não autenticado" as NaoAutenticado
+state "Autenticando" as Autenticando : entry / contar tentativa de login\ndo / conferir e-mail e senha (hash bcrypt)
+state "Bloqueado temporariamente" as Bloqueado : entry / responder 429
+state "Sessão expirada" as Expirada : o cookie ainda existe,\nmas o token já não vale
+
+state "Sessão ativa" as Ativa {
+  state "Aguardando requisição" as Aguardando
+  state "Validando token" as Validando : do / conferir assinatura\ne validade do JWT
+  state "Verificando permissão" as Permissao : do / checar se o usuário pode\nconsultar ou enviar
+  state "Acessando recurso" as Acessando : do / consultar leituras ou\nenviar e consultar fotos
+
+  [*] --> Aguardando
+  Aguardando --> Validando : requisição com token
+  Validando --> Permissao : [token válido]
+  Permissao --> Acessando : [permitido]
+  Permissao --> Aguardando : [não permitido] /\nresponder 403
+  Acessando --> Aguardando : resposta enviada
+}
+
+[*] -down-> NaoAutenticado
+NaoAutenticado -down-> Autenticando : enviar e-mail e senha
+Autenticando -up-> NaoAutenticado : [credenciais inválidas] /\nresponder erro
+Autenticando -left-> Bloqueado : [mais de 10 tentativas\nem 15 min]
+Bloqueado -up-> NaoAutenticado : fim da janela\nde 15 min
+Autenticando -down-> Ativa : [credenciais válidas] /\nemitir JWT (2 h) e gravar cookie
+Ativa -right-> Expirada : after(2 h)
+Expirada -up-> NaoAutenticado : nova requisição /\nresponder 401 e apagar cookie
+Ativa -up-> NaoAutenticado : logout /\napagar cookie
+Ativa -up-> NaoAutenticado : token rejeitado\n(inválido ou usuário inexistente) /\nresponder 401 e apagar cookie
+
+note right of Expirada
+  No Nooneurose o cookie dura 7 dias
+  e o token 2 h: por isso este estado existe.
+end note
+
+legend bottom left
+  Em "Sessão ativa" o usuário reutiliza o mesmo token em todas as
+  requisições, nos dois bancos, sem autenticar de novo.
+  A confirmar: papéis e permissões (quem consulta, quem envia fotos).
+  Valores (JWT de 2 h, 10 tentativas em 15 min, bcrypt) vêm do
+  código de autenticação do Nooneurose, que será reaproveitado.
+endlegend
+@enduml

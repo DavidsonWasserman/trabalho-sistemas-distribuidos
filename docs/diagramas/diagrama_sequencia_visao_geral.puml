@@ -1,0 +1,118 @@
+@startuml diagrama_sequencia_visao_geral
+' Diagrama de sequência UML - visão geral do sistema
+' Abrir em: https://www.plantuml.com/plantuml (colar o texto) ou extensão PlantUML do VS Code
+
+title Diagrama de sequência — Visão geral do sistema
+
+autonumber
+skinparam shadowing false
+skinparam defaultFontName "DejaVu Sans"
+skinparam defaultFontSize 13
+skinparam ArrowColor #333333
+skinparam sequence {
+  LifeLineBorderColor #7A8794
+  ParticipantBackgroundColor #F7F9FC
+  ParticipantBorderColor #33475B
+  ParticipantFontStyle bold
+  ActorBorderColor #33475B
+  ActorBackgroundColor #F7F9FC
+  DividerBackgroundColor #E3EAF2
+  DividerBorderColor #33475B
+  DividerFontStyle bold
+  GroupBackgroundColor #E3EAF2
+  GroupBorderColor #33475B
+  ReferenceBackgroundColor #F7F9FC
+  ReferenceBorderColor #33475B
+}
+skinparam database {
+  BackgroundColor #F7F9FC
+  BorderColor #33475B
+}
+skinparam note {
+  BackgroundColor #FFF8E1
+  BorderColor #B8860B
+}
+
+actor "Usuário" as U
+participant "Interface\n(site)" as UI
+participant "Nginx\n(proxy reverso)" as NG
+participant "Serviço de\nAutenticação" as AU
+participant "Serviço de Dados\ne Análise" as API
+database "InfluxDB\n(série temporal)" as IN
+database "MinIO ou substituto\n(fotos)" as MI
+participant "YOLO" as YO
+participant "Tesseract\nOCR" as TE
+
+== 1. Login (uma vez por sessão) ==
+U -> UI : informa e-mail e senha
+UI -> NG : pedido de login
+NG -> AU : encaminha o pedido
+AU -> AU : confere a senha (hash)
+AU --> NG : token JWT (validade de 2 h)
+NG --> UI : token JWT
+UI -> UI : guarda o token (cookie)
+UI --> U : acesso liberado
+
+== 2. Consulta das leituras do sensor ==
+U -> UI : escolhe um período
+UI -> NG : requisição + token
+NG -> API : encaminha a requisição
+API -> AU : validar token e permissão
+alt token válido e permissão concedida
+  AU --> API : ok (usuário e permissões)
+  API -> IN : consulta as leituras do período
+  IN --> API : leituras
+  API --> NG : leituras
+  NG --> UI : leituras
+  UI --> U : mostra as leituras
+else token inválido, expirado ou sem permissão
+  AU --> API : negado
+  API --> NG : erro 401 ou 403
+  NG --> UI : erro 401 ou 403
+  UI --> U : volta para o login\nou avisa falta de permissão
+end
+
+== 3. Envio e análise de foto ==
+U -> UI : seleciona a foto
+UI -> NG : foto + token
+NG -> API : encaminha a foto
+ref over AU, API : validar token e permissão (como no bloco 2)
+API -> API : lê data e hora nos\nmetadados da foto
+API -> MI : guarda a foto\nidentificada pelo horário
+MI --> API : confirmação
+API -> YO : detectar objetos\n(ex.: jarra branca)
+YO --> API : objetos encontrados
+API -> TE : ler o texto da foto
+TE --> API : texto lido
+API -> IN : guarda o resultado da análise\ncom o horário da foto
+note right of IN
+  Local do resultado:
+  proposta do grupo,
+  a confirmar
+end note
+IN --> API : confirmação
+API --> NG : foto registrada + o que foi identificado
+NG --> UI : foto registrada + o que foi identificado
+UI --> U : confirma o envio
+
+== 4. Consulta de um período: leituras + fotos ==
+U -> UI : escolhe um período\n(ex.: 00:30 a 00:40)
+UI -> NG : requisição + token
+NG -> API : encaminha a requisição
+ref over AU, API : validar token e permissão (como no bloco 2)
+API -> IN : busca leituras e resultados\nde análise do período
+IN --> API : leituras + resultados
+API -> MI : busca as fotos do período
+MI --> API : fotos
+API --> NG : leituras + fotos + o que foi identificado
+NG --> UI : leituras + fotos + o que foi identificado
+UI --> U : mostra leituras e fotos do período,\ncom ou sem alerta do sensor
+
+legend bottom left
+  <b>Propostas do grupo, a confirmar com o professor</b>
+  • "Serviço de Dados e Análise": a divisão em serviços ainda não foi definida.
+  • Analisar a foto no momento do envio e guardar o resultado no InfluxDB, junto do horário.
+  • Qual armazenamento de fotos usar no lugar do MinIO, se for preciso trocar.
+  • O usuário só consulta as leituras do sensor. O que ele envia são as fotos.
+endlegend
+@enduml

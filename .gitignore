@@ -1,0 +1,23 @@
+# Segredos e variáveis de ambiente
+.env
+.env.*
+!.env.example
+secrets/
+
+# Configuração pessoal do Claude Code (a do projeto, .claude/settings.json, vai para o Git)
+.claude/settings.local.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node
+node_modules/
+.next/
+
+# Sistema e editor
+.DS_Store
+.vscode/
+.idea/
