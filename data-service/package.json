@@ -7,7 +7,9 @@
     "measurements": "node dist/queryMeasurements.js"
   },
   "dependencies": {
-    "@influxdata/influxdb-client": "1.35.0"
+    "@influxdata/influxdb-client": "1.35.0",
+    "drizzle-orm": "0.45.2",
+    "postgres": "3.4.9"
   },
   "devDependencies": {
     "@types/node": "25.5.2",

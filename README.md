@@ -1,7 +1,7 @@
 # Trabalho de Sistemas Distribuídos
 
-Sistema em contêineres Docker com um microsserviço de autenticação, um banco de
-série temporal (InfluxDB) e um armazenamento de fotos, atrás de um Nginx.
+Sistema em contêineres Docker com autenticação, leituras no InfluxDB,
+metadados de fotos no PostgreSQL e originais no SeaweedFS, atrás de um Nginx.
 O planejamento e os diagramas UML estão em `docs/`.
 
 ## Requisito de escalabilidade horizontal
@@ -17,6 +17,7 @@ consistentes quando as requisições forem distribuídas entre réplicas.
 | `nginx`        | Proxy reverso, única porta aberta para fora                 | http://localhost:8080      |
 | `auth-service` | Microsserviço de autenticação (adaptado do Nooneurose)      | só pela rede interna       |
 | `auth-db`      | PostgreSQL com a tabela de usuários                         | só pela rede interna       |
+| `photo-db`     | PostgreSQL com os metadados e a análise das fotos            | só pela rede interna       |
 | `influxdb`     | InfluxDB 2 OSS com leituras sintéticas                      | só pela rede interna       |
 | `influx-check` | Consulta de teste executada sob demanda pelo Compose       | saída no terminal          |
 | `influx-query` | Consulta de leituras por período pelo serviço de dados     | JSON no terminal           |
@@ -28,7 +29,7 @@ consistentes quando as requisições forem distribuídas entre réplicas.
 cp -n .env.example .env
 ```
 
-No `.env`, preencha as credenciais do autenticador,
+No `.env`, preencha as credenciais do autenticador, `PHOTO_DB_PASSWORD`,
 `INFLUX_LOCAL_ADMIN_PASSWORD` (ao menos 8 caracteres) e
 `INFLUX_LOCAL_ADMIN_TOKEN` (por exemplo, gerado com `openssl rand -hex 32`).
 Prepare também as credenciais do SeaweedFS conforme a seção
@@ -40,8 +41,8 @@ docker compose ps
 ```
 
 Use `docker compose down` para parar os serviços. A opção `-v` também apaga
-os usuários cadastrados, os dados e credenciais locais do InfluxDB e as fotos
-armazenadas no SeaweedFS.
+os usuários cadastrados, os dados e credenciais locais do InfluxDB, os metadados
+das fotos e os originais armazenados no SeaweedFS.
 
 ## Armazenamento de fotos
 
@@ -62,6 +63,20 @@ Os serviços da rede interna usam o endpoint `http://seaweedfs:8333` com
 endereçamento S3 por caminho (path-style). Use a identidade `envio` para
 gravar objetos e a identidade `consulta` para listar e recuperar objetos
 do bucket. Uma tentativa de gravação com `consulta` recebe `403 AccessDenied`.
+
+## Metadados das fotos
+
+Para subir só o banco de metadados, execute `docker compose up -d --wait photo-db`.
+O serviço cria a tabela `photo_metadata` na primeira inicialização do volume
+`photo-db-data`. Na rede interna, a conexão usa o host `photo-db`, a porta
+`5432`, o banco e o usuário `photos` e a senha `PHOTO_DB_PASSWORD`.
+
+O módulo `photoMetadata.ts` do serviço de dados recebe um cliente `postgres`
+pela função `createPhotoMetadataRepository`. Use `insertPhotoMetadata` para
+gravar o horário de captura, o bucket e a chave S3 do original e os resultados
+do YOLO e do Tesseract. Passe `null` em `tesseractResult` quando o OCR não foi
+executado. Use `listPhotoMetadata(inicio, fim)` com objetos `Date` para consultar
+por horário de captura. O início é inclusivo e o fim é exclusivo.
 
 ## Leituras do InfluxDB
 
