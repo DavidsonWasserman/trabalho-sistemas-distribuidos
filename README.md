@@ -20,6 +20,7 @@ consistentes quando as requisições forem distribuídas entre réplicas.
 | `influxdb`     | InfluxDB 2 OSS com leituras sintéticas                      | só pela rede interna       |
 | `influx-check` | Consulta de teste executada sob demanda pelo Compose       | saída no terminal          |
 | `influx-query` | Consulta de leituras por período pelo serviço de dados     | JSON no terminal           |
+| `seaweedfs`    | Armazenamento dos originais das fotos via API S3            | só pela rede interna       |
 
 ## Como subir
 
@@ -30,7 +31,8 @@ cp -n .env.example .env
 No `.env`, preencha as credenciais do autenticador,
 `INFLUX_LOCAL_ADMIN_PASSWORD` (ao menos 8 caracteres) e
 `INFLUX_LOCAL_ADMIN_TOKEN` (por exemplo, gerado com `openssl rand -hex 32`).
-Em seguida, use o Docker Compose v2.
+Prepare também as credenciais do SeaweedFS conforme a seção
+[Armazenamento de fotos](#armazenamento-de-fotos). Em seguida, use o Docker Compose v2.
 
 ```bash
 docker compose up -d --build --wait
@@ -38,7 +40,28 @@ docker compose ps
 ```
 
 Use `docker compose down` para parar os serviços. A opção `-v` também apaga
-os usuários cadastrados e os dados e credenciais locais do InfluxDB.
+os usuários cadastrados, os dados e credenciais locais do InfluxDB e as fotos
+armazenadas no SeaweedFS.
+
+## Armazenamento de fotos
+
+```bash
+mkdir -p secrets
+cp -n seaweedfs/s3.example.json secrets/seaweedfs-s3.json
+```
+
+Em `secrets/seaweedfs-s3.json`, substitua cada `secretKey` por um valor
+diferente, gerado com `openssl rand -hex 32`. O arquivo local é ignorado
+pelo Git e precisa ser legível pelo usuário `seaweed` do contêiner (UID 1000).
+
+Para subir somente o armazenamento, execute `docker compose up -d --wait seaweedfs`.
+O SeaweedFS cria o bucket `fotos` na inicialização e mantém os arquivos e os
+metadados no volume `seaweedfs-data`.
+
+Os serviços da rede interna usam o endpoint `http://seaweedfs:8333` com
+endereçamento S3 por caminho (path-style). Use a identidade `envio` para
+gravar objetos e a identidade `consulta` para listar e recuperar objetos
+do bucket. Uma tentativa de gravação com `consulta` recebe `403 AccessDenied`.
 
 ## Leituras do InfluxDB
 

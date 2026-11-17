@@ -1,5 +1,5 @@
 # Sistema do trabalho de Sistemas Distribuídos.
-# Autenticação e InfluxDB local para desenvolvimento.
+# Autenticação, InfluxDB e armazenamento de fotos local para desenvolvimento.
 
 # Nome próprio do projeto, para não se misturar com outros projetos Docker do notebook.
 name: sistemas-distribuidos
@@ -74,6 +74,29 @@ services:
       INFLUX_ORG: ${INFLUX_ORG:-horticultura-local}
       INFLUX_TOKEN: ${INFLUX_TOKEN:-}
 
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.54
+    command:
+      - mini
+      - -dir=/data
+      - -bucket=fotos
+      - -s3.config=/etc/seaweedfs/s3.json
+      - -webdav=false
+      - -admin.ui=false
+    volumes:
+      - seaweedfs-data:/data
+      - type: bind
+        source: ./secrets/seaweedfs-s3.json
+        target: /etc/seaweedfs/s3.json
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8333/readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   nginx:
     image: nginx:alpine
     depends_on:
@@ -87,3 +110,4 @@ volumes:
   auth-db-data:
   influxdb-data:
   influxdb-config:
+  seaweedfs-data:
