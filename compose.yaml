@@ -65,6 +65,15 @@ services:
     volumes:
       - ./influxdb/latest.flux:/queries/latest.flux:ro
 
+  influx-query:
+    build:
+      context: ./data-service
+    profiles: [tools]
+    environment:
+      INFLUX_HOST: ${INFLUX_HOST:-http://influxdb:8086}
+      INFLUX_ORG: ${INFLUX_ORG:-horticultura-local}
+      INFLUX_TOKEN: ${INFLUX_TOKEN:-}
+
   nginx:
     image: nginx:alpine
     depends_on:

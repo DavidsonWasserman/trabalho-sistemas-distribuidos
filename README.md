@@ -19,6 +19,7 @@ consistentes quando as requisições forem distribuídas entre réplicas.
 | `auth-db`      | PostgreSQL com a tabela de usuários                         | só pela rede interna       |
 | `influxdb`     | InfluxDB 2 OSS com leituras sintéticas                      | só pela rede interna       |
 | `influx-check` | Consulta de teste executada sob demanda pelo Compose       | saída no terminal          |
+| `influx-query` | Consulta de leituras por período pelo serviço de dados     | JSON no terminal           |
 
 ## Como subir
 
@@ -68,13 +69,25 @@ docker compose run --rm influx-check
 A consulta exibe a última leitura de cada campo por série. Na amostra local,
 os quatro resultados têm o horário `2026-11-17T12:50:00Z`.
 
+Para consultar um período pelo serviço de dados, informe o início e o fim em
+ISO 8601 UTC. Este comando retorna as seis leituras da amostra.
+
+```bash
+docker compose --profile tools build influx-query
+docker compose run --rm -T influx-query 2026-11-17T12:00:00Z 2026-11-17T13:00:00Z
+```
+
+Cada leitura traz `timestamp`, `temperature` (°C), `humidity` (% de umidade
+relativa), `pressure` (Pa) e `rssi` (sinal do sensor). O início é inclusivo e o
+fim é exclusivo. Campos ausentes aparecem como `null` e períodos vazios
+retornam `[]`.
+
 ### Usar a VPS do professor
 
 Preencha `INFLUX_HOST` com o endereço da VPS, `INFLUX_ORG` com a organização
 e `INFLUX_TOKEN` com o token de leitura fornecido pelo professor. Execute
-novamente `docker compose run --rm influx-check`. O Compose cria um novo
-contêiner com os valores do `.env` e executa a mesma consulta no bucket
-`horticultura`.
+`docker compose run --rm -T influx-query` com as datas desejadas. O Compose cria
+um contêiner com os valores do `.env` e consulta o bucket `horticultura`.
 
 ## Rotas do autenticador
 

@@ -1,0 +1,16 @@
+{
+  "name": "data-service",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "measurements": "node dist/queryMeasurements.js"
+  },
+  "dependencies": {
+    "@influxdata/influxdb-client": "1.35.0"
+  },
+  "devDependencies": {
+    "@types/node": "25.5.2",
+    "typescript": "6.0.2"
+  }
+}
