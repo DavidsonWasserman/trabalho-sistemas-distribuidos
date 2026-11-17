@@ -4,6 +4,12 @@ Sistema em contêineres Docker com um microsserviço de autenticação, um banco
 série temporal (InfluxDB) e um armazenamento de fotos, atrás de um Nginx.
 O planejamento e os diagramas UML estão em `docs/`.
 
+## Requisito de escalabilidade horizontal
+
+Os serviços devem poder operar com múltiplas réplicas sem perda de
+funcionalidade. As operações, os dados e as regras do sistema devem permanecer
+consistentes quando as requisições forem distribuídas entre réplicas.
+
 ## O que já roda
 
 | Serviço        | O que é                                                     | Acesso                     |
