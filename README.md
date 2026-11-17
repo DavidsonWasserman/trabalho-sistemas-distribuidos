@@ -11,17 +11,64 @@ O planejamento e os diagramas UML estão em `docs/`.
 | `nginx`        | Proxy reverso, única porta aberta para fora                 | http://localhost:8080      |
 | `auth-service` | Microsserviço de autenticação (adaptado do Nooneurose)      | só pela rede interna       |
 | `auth-db`      | PostgreSQL com a tabela de usuários                         | só pela rede interna       |
+| `influxdb`     | InfluxDB 2 OSS com leituras sintéticas                      | só pela rede interna       |
+| `influx-check` | Consulta de teste executada sob demanda pelo Compose       | saída no terminal          |
 
 ## Como subir
 
 ```bash
-cp .env.example .env      # depois edite o .env e troque as duas senhas
-docker compose up -d --build
-docker compose ps         # os três serviços devem aparecer como "running"
+cp -n .env.example .env
 ```
 
-Para parar: `docker compose down`. Para apagar também os usuários cadastrados:
-`docker compose down -v`.
+No `.env`, preencha as credenciais do autenticador,
+`INFLUX_LOCAL_ADMIN_PASSWORD` (ao menos 8 caracteres) e
+`INFLUX_LOCAL_ADMIN_TOKEN` (por exemplo, gerado com `openssl rand -hex 32`).
+Em seguida, use o Docker Compose v2.
+
+```bash
+docker compose up -d --build --wait
+docker compose ps
+```
+
+Use `docker compose down` para parar os serviços. A opção `-v` também apaga
+os usuários cadastrados e os dados e credenciais locais do InfluxDB.
+
+## Leituras do InfluxDB
+
+Para subir somente o banco de leituras, execute
+`docker compose up -d --wait influxdb`. Na primeira inicialização, o bucket
+`horticultura` recebe seis pontos na measurement `measurements`, de
+`2026-11-17T12:00:00Z` a `2026-11-17T12:50:00Z`, a cada 10 minutos.
+Cada ponto contém `temperature` em °C, `humidity` em %, `pressure` em Pa
+e `rssi` (sinal do sensor).
+
+Emita um token com permissão apenas de leitura do bucket. O comando usa a
+configuração administrativa criada dentro do contêiner na inicialização.
+
+```bash
+docker compose exec -T influxdb sh -ec '
+  bucket_id=$(influx bucket list --org horticultura-local --name horticultura --hide-headers | cut -f1)
+  influx auth create --org horticultura-local --read-bucket "${bucket_id:?bucket horticultura ausente}" --description influx-check
+'
+```
+
+Copie o token retornado para `INFLUX_TOKEN` no `.env`. Guarde as
+credenciais locais e da VPS somente no `.env`, que é ignorado pelo Git.
+
+```bash
+docker compose run --rm influx-check
+```
+
+A consulta exibe a última leitura de cada campo por série. Na amostra local,
+os quatro resultados têm o horário `2026-11-17T12:50:00Z`.
+
+### Usar a VPS do professor
+
+Preencha `INFLUX_HOST` com o endereço da VPS, `INFLUX_ORG` com a organização
+e `INFLUX_TOKEN` com o token de leitura fornecido pelo professor. Execute
+novamente `docker compose run --rm influx-check`. O Compose cria um novo
+contêiner com os valores do `.env` e executa a mesma consulta no bucket
+`horticultura`.
 
 ## Rotas do autenticador
 

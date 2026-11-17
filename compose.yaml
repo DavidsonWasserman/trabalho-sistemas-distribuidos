@@ -1,6 +1,5 @@
 # Sistema do trabalho de Sistemas Distribuídos.
-# Por enquanto: banco de usuários + microsserviço de autenticação + Nginx.
-# Os próximos serviços (InfluxDB, armazenamento de fotos, análise) entram aqui depois.
+# Autenticação e InfluxDB local para desenvolvimento.
 
 # Nome próprio do projeto, para não se misturar com outros projetos Docker do notebook.
 name: sistemas-distribuidos
@@ -34,6 +33,38 @@ services:
       auth-db:
         condition: service_healthy
 
+  influxdb:
+    image: influxdb:2.7
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUX_LOCAL_ADMIN_PASSWORD:-}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUX_LOCAL_ADMIN_TOKEN:-}
+      DOCKER_INFLUXDB_INIT_ORG: horticultura-local
+      DOCKER_INFLUXDB_INIT_BUCKET: horticultura
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+      - influxdb-config:/etc/influxdb2
+      - ./influxdb/seed.sh:/docker-entrypoint-initdb.d/seed.sh:ro
+      - ./influxdb/measurements.lp:/seed/measurements.lp:ro
+    healthcheck:
+      test: ["CMD", "influx", "ping", "--host", "http://127.0.0.1:8086"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  influx-check:
+    image: influxdb:2.7
+    profiles: [tools]
+    entrypoint: ["influx"]
+    command: ["query", "--file", "/queries/latest.flux"]
+    environment:
+      INFLUX_HOST: ${INFLUX_HOST:-http://influxdb:8086}
+      INFLUX_ORG: ${INFLUX_ORG:-horticultura-local}
+      INFLUX_TOKEN: ${INFLUX_TOKEN:-}
+    volumes:
+      - ./influxdb/latest.flux:/queries/latest.flux:ro
+
   nginx:
     image: nginx:alpine
     depends_on:
@@ -45,3 +76,5 @@ services:
 
 volumes:
   auth-db-data:
+  influxdb-data:
+  influxdb-config:
