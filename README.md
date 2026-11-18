@@ -18,6 +18,7 @@ consistentes quando as requisições forem distribuídas entre réplicas.
 | `auth-service` | Microsserviço de autenticação (adaptado do Nooneurose)      | só pela rede interna       |
 | `auth-db`      | PostgreSQL com a tabela de usuários                         | só pela rede interna       |
 | `photo-db`     | PostgreSQL com os metadados e a análise das fotos            | só pela rede interna       |
+| `vision-service` | Detecção de objetos e OCR das fotos                        | só pela rede interna       |
 | `influxdb`     | InfluxDB 2 OSS com leituras sintéticas                      | só pela rede interna       |
 | `influx-check` | Consulta de teste executada sob demanda pelo Compose       | saída no terminal          |
 | `influx-query` | Consulta de leituras por período pelo serviço de dados     | JSON no terminal           |
@@ -77,6 +78,40 @@ gravar o horário de captura, o bucket e a chave S3 do original e os resultados
 do YOLO e do Tesseract. Passe `null` em `tesseractResult` quando o OCR não foi
 executado. Use `listPhotoMetadata(inicio, fim)` com objetos `Date` para consultar
 por horário de captura. O início é inclusivo e o fim é exclusivo.
+
+## Análise das fotos
+
+Suba o serviço com `docker compose up -d --build --wait vision-service`.
+O build inclui o YOLOv8n treinado em COCO e o Tesseract com português e inglês.
+A análise roda em CPU, e o serviço fica disponível na rede interna em
+`http://vision-service:8000`.
+
+Envie o JPEG original no corpo de `POST /analyze`, com
+`Content-Type: image/jpeg`. Para testar com um arquivo local sem publicar
+a porta do serviço, execute:
+
+```bash
+docker compose exec -T vision-service python -c '
+import sys
+from urllib.request import Request, urlopen
+
+request = Request("http://127.0.0.1:8000/analyze", data=sys.stdin.buffer.read(),
+                  headers={"Content-Type": "image/jpeg"})
+with urlopen(request, timeout=120) as response:
+    print(response.read().decode())
+' < foto.jpg
+```
+
+A lista `yoloResult` inclui apenas `cup`, `vase` e `potted plant`, com
+`className`, `confidence` e `bbox` em pixels `[x1, y1, x2, y2]` após aplicar
+a orientação EXIF. Com a lista vazia, `tesseractResult` é `null`. Se houver
+uma detecção, o Tesseract lê a foto inteira uma vez e retorna
+`{"text": ""}` quando não encontra texto, ou o texto reconhecido nesse campo.
+O serviço retorna `415` para um tipo de mídia incompatível, `400` para um
+JPEG inválido e `500` se a análise falhar.
+
+Para rodar os testes da rota no contêiner, execute
+`docker compose exec -T vision-service python - < vision-service/test_app.py`.
 
 ## Leituras do InfluxDB
 
