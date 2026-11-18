@@ -177,6 +177,28 @@ Todas passam pelo Nginx em `http://localhost:8080`.
 O token vai no cabeçalho `Authorization: Bearer <token>`.
 O login aceita no máximo 10 tentativas a cada 15 minutos por IP.
 
+### Perfis de cliente e administrador
+
+O cadastro público cria clientes (`isAdmin: false`). O operador do ambiente
+pode promover uma conta existente. Confirme o e-mail da conta antes de executar
+o comando. A conta promovida aparece no resultado com `is_admin = t`.
+
+```bash
+ADMIN_EMAIL='admin@exemplo.com'
+docker compose exec -T auth-db psql -U auth -d auth \
+    -v ON_ERROR_STOP=1 -v admin_email="$ADMIN_EMAIL" <<'SQL'
+UPDATE users
+SET is_admin = true
+WHERE email = :'admin_email'
+RETURNING id, email, is_admin;
+SQL
+```
+
+Se o comando retornar `UPDATE 0`, confira se o e-mail corresponde exatamente ao
+da conta cadastrada. O endpoint `GET /api/user/me` informa o perfil atual.
+O JWT emitido pelo login inclui `isAdmin` com o perfil no momento da emissão.
+Após a promoção, faça login novamente para atualizar o JWT.
+
 ## Roteiro de demonstração
 
 ```bash

@@ -29,6 +29,9 @@ async function ensureSchema() {
       is_admin boolean NOT NULL DEFAULT false
     )
   `);
+  await db.execute(sql`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin boolean NOT NULL DEFAULT false
+  `);
 }
 
 /******************************************************************************

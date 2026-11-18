@@ -50,7 +50,7 @@ export default abstract class MainUserService {
     @ThrowsUserServiceError
     public static async update(user: User, change: UpdateUserData): Promise<User> {
         const processedPass = change.password ? await bcrypt.hash(change.password, 10) : undefined
-        const updatedChange: UpdateUserData = { ...change, password: processedPass }
+        const updatedChange: UpdateUserData = { name: change.name, password: processedPass }
         const res = await db.update(usersTable).set(updatedChange).where(eq(usersTable.id, user.id)).returning()
         return res[0]
     }

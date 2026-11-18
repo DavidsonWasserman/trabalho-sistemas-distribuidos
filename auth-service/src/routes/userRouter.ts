@@ -79,7 +79,7 @@ userRouter.post(APIPaths.User.Login(), loginRateLimit, async function(req: Req, 
         throw new RouteError(400, 'Wrong email or password')
     }
 
-    const token = jwt.sign({ id: user.id }, EnvVars.JwtSecret, { expiresIn: '2h' })
+    const token = jwt.sign({ id: user.id, isAdmin: user.isAdmin }, EnvVars.JwtSecret, { expiresIn: '2h' })
     res.json({ token: token })
 })
 
