@@ -19,6 +19,7 @@ consistentes quando as requisições forem distribuídas entre réplicas.
 | `auth-db`      | PostgreSQL com a tabela de usuários                         | só pela rede interna       |
 | `photo-db`     | PostgreSQL com os metadados e a análise das fotos            | só pela rede interna       |
 | `vision-service` | Detecção de objetos e OCR das fotos                        | só pela rede interna       |
+| `data-service` | Recebe fotos, coordena a análise e grava os metadados       | através do Nginx           |
 | `influxdb`     | InfluxDB 2 OSS com leituras sintéticas                      | só pela rede interna       |
 | `influx-check` | Consulta de teste executada sob demanda pelo Compose       | saída no terminal          |
 | `influx-query` | Consulta de leituras por período pelo serviço de dados     | JSON no terminal           |
@@ -64,6 +65,27 @@ Os serviços da rede interna usam o endpoint `http://seaweedfs:8333` com
 endereçamento S3 por caminho (path-style). Use a identidade `envio` para
 gravar objetos e a identidade `consulta` para listar e recuperar objetos
 do bucket. Uma tentativa de gravação com `consulta` recebe `403 AccessDenied`.
+No `.env`, preencha `PHOTO_S3_ACCESS_KEY` e `PHOTO_S3_SECRET_KEY` com o
+`accessKey` e o `secretKey` da identidade `envio` do arquivo local.
+
+## Envio de fotos
+
+Com a stack em execução, faça login com uma conta administradora e use o
+token retornado. O corpo é o arquivo JPEG original, com limite de 10 MiB.
+
+```bash
+curl -i http://localhost:8080/api/photos \
+     -H "Authorization: Bearer $T" \
+     -H 'Content-Type: image/jpeg' \
+     --data-binary @foto.jpg
+```
+
+O horário vem de `DateTimeOriginal` no EXIF. O sistema respeita
+`OffsetTimeOriginal` quando a câmera o informa e usa `America/Sao_Paulo`
+quando o offset está ausente. JPEGs sem data ou com horário inválido recebem
+`400`. A resposta `201` inclui `id`, `capturedAt` em UTC, `originalBucket`,
+`originalKey`, `yoloResult` e `tesseractResult`. Reenviar a mesma foto
+gera um novo registro e uma nova análise.
 
 ## Metadados das fotos
 
