@@ -14,7 +14,7 @@ consistentes quando as requisições forem distribuídas entre réplicas.
 
 | Serviço        | O que é                                                     | Acesso                     |
 |----------------|-------------------------------------------------------------|----------------------------|
-| `nginx`        | Proxy reverso, única porta aberta para fora                 | http://localhost:8080      |
+| `nginx`        | Tela do cliente e proxy reverso                              | http://localhost:8080      |
 | `auth-service` | Microsserviço de autenticação (adaptado do Nooneurose)      | só pela rede interna       |
 | `auth-db`      | PostgreSQL com a tabela de usuários                         | só pela rede interna       |
 | `photo-db`     | PostgreSQL com os metadados e a análise das fotos            | só pela rede interna       |
@@ -67,6 +67,8 @@ gravar objetos e a identidade `consulta` para listar e recuperar objetos
 do bucket. Uma tentativa de gravação com `consulta` recebe `403 AccessDenied`.
 No `.env`, preencha `PHOTO_S3_ACCESS_KEY` e `PHOTO_S3_SECRET_KEY` com o
 `accessKey` e o `secretKey` da identidade `envio` do arquivo local.
+Para exibir os originais na tela, preencha também `PHOTO_S3_READ_ACCESS_KEY`
+e `PHOTO_S3_READ_SECRET_KEY` com os valores da identidade `consulta`.
 
 ## Envio de fotos
 
@@ -88,6 +90,13 @@ quando o offset está ausente. JPEGs sem data ou com horário inválido recebem
 gera um novo registro e uma nova análise.
 
 ## Consulta por período
+
+Abra [a tela do cliente](http://localhost:8080/) com a stack em execução.
+Entre com uma conta cadastrada, informe início e fim em UTC e clique em
+**Consultar**. A tela mostra as leituras, os JPEGs, os objetos detectados e o
+texto reconhecido em cada foto. Se o intervalo estiver vazio, a tela avisa.
+O cadastro de uma conta cliente está no
+[roteiro de demonstração](#roteiro-de-demonstração).
 
 Clientes e administradores autenticados podem consultar o mesmo intervalo de
 leituras e fotos pelo Nginx. Configure o token de leitura do InfluxDB conforme
@@ -111,6 +120,7 @@ casas decimais nos segundos. O início é inclusivo e o fim é exclusivo.
 A resposta `200` inclui os arrays `measurements` e `photos`. Cada foto é
 selecionada por `capturedAt` e inclui a referência ao original e os resultados
 persistidos da análise. Uma fonte sem registros retorna seu array vazio.
+Para obter o JPEG original, use `GET /api/photos/<id>/original` com o mesmo token.
 
 - `includeVariations=true` acrescenta `variations` à resposta. Para
   `temperature`, `humidity`, `pressure` e `rssi`, o valor é a última leitura

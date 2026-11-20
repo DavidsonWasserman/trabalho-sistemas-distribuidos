@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict");
 const { once } = require("node:events");
 const { createServer } = require("node:http");
+const { Readable } = require("node:stream");
 const { test } = require("node:test");
 const { createDataServer } = require("../dist/dataServer");
 
@@ -65,4 +66,34 @@ test("consulta como cliente e calcula diferenças com resultados persistidos e c
     detectionChanges: [{ className: "vase", delta: 1 }],
     ocr: { fromText: null, toText: "", changed: null },
   });
+});
+
+test("entrega o original ao cliente autenticado pelo ID cadastrado", async (t) => {
+  const authUrl = await listen(t, createServer((req, res) => {
+    res.writeHead(req.headers.authorization === "Bearer client" ? 200 : 401);
+    res.end(JSON.stringify({ isAdmin: false }));
+  }));
+  const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
+  const url = await listen(t, createDataServer({
+    authUrl,
+    async findPhotoOriginal(id) {
+      return id === 1 ? { bucket: "fotos", key: "captura.jpg" } : undefined;
+    },
+    async getOriginal(bucket, key) {
+      assert.deepEqual({ bucket, key }, { bucket: "fotos", key: "captura.jpg" });
+      return Readable.from([jpeg]);
+    },
+  }));
+  const original = `${url}/api/photos/1/original`;
+  const options = { headers: { authorization: "Bearer client" } };
+  assert.equal((await fetch(original)).status, 401);
+  assert.equal((await fetch(original, { headers: { authorization: "Bearer invalid" } })).status, 401);
+  assert.equal((await fetch(`${url}/api/photos/2/original`, options)).status, 404);
+  assert.equal((await fetch(original, { ...options, method: "POST" })).status, 405);
+
+  const response = await fetch(original, options);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.equal(response.headers.get("content-type"), "image/jpeg");
+  assert.deepEqual(Buffer.from(await response.arrayBuffer()), jpeg);
 });

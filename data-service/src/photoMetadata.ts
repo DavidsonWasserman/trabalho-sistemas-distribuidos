@@ -1,4 +1,4 @@
-import { and, gte, lt } from "drizzle-orm";
+import { and, eq, gte, lt } from "drizzle-orm";
 import { index, integer, jsonb, pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/postgres-js";
 import type { Sql } from "postgres";
@@ -28,6 +28,14 @@ export function createPhotoMetadataRepository(client: Sql) {
     async insertPhotoMetadata(input: NewPhotoMetadata): Promise<PhotoMetadata> {
       const [record] = await db.insert(photoMetadata).values(input).returning();
       return record;
+    },
+
+    async findPhotoOriginal(id: number) {
+      const [original] = await db.select({
+        bucket: photoMetadata.originalBucket,
+        key: photoMetadata.originalKey,
+      }).from(photoMetadata).where(eq(photoMetadata.id, id));
+      return original;
     },
 
     async listPhotoMetadata(start: Date, end: Date): Promise<PhotoMetadata[]> {
