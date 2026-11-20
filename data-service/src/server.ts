@@ -1,7 +1,8 @@
 import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import postgres from "postgres";
 import { createPhotoMetadataRepository } from "./photoMetadata";
-import { createPhotoUploadServer } from "./photoUpload";
+import { createDataServer } from "./dataServer";
+import { listMeasurements } from "./measurements";
 
 function requiredEnv(name: string): string {
   const value = process.env[name];
@@ -41,7 +42,8 @@ async function sendToStorage(send: (signal: AbortSignal) => Promise<unknown>): P
   }
 }
 
-const server = createPhotoUploadServer({
+const server = createDataServer({
+  listMeasurements,
   authUrl: process.env.AUTH_SERVICE_URL ?? "http://auth-service:3001",
   visionUrl: process.env.VISION_SERVICE_URL ?? "http://vision-service:8000",
   ...createPhotoMetadataRepository(sql),

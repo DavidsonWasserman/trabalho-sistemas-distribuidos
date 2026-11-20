@@ -126,6 +126,9 @@ services:
       context: ./data-service
     entrypoint: ["node", "dist/server.js"]
     environment:
+      INFLUX_HOST: ${INFLUX_HOST:-http://influxdb:8086}
+      INFLUX_ORG: ${INFLUX_ORG:-horticultura-local}
+      INFLUX_TOKEN: ${INFLUX_TOKEN:-}
       PHOTO_DB_PASSWORD: ${PHOTO_DB_PASSWORD:?defina PHOTO_DB_PASSWORD no arquivo .env}
       PHOTO_S3_ACCESS_KEY: ${PHOTO_S3_ACCESS_KEY:-fotos-envio}
       PHOTO_S3_SECRET_KEY: ${PHOTO_S3_SECRET_KEY:-}

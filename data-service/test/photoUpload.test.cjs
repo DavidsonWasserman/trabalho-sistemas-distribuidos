@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 const { once } = require("node:events");
 const { createServer, request } = require("node:http");
 const { test } = require("node:test");
-const { createPhotoUploadServer } = require("../dist/photoUpload");
+const { createDataServer } = require("../dist/dataServer");
 
 const JPEG = Buffer.from(
   "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAAEAAQBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAAAf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AH//Z",
@@ -68,7 +68,7 @@ async function setup(t) {
     res.end(JSON.stringify(visionResult));
   }));
 
-  const url = (await listen(t, createPhotoUploadServer({
+  const url = (await listen(t, createDataServer({
     authUrl: internalUrl,
     visionUrl: internalUrl,
     async putOriginal(bucket, key, jpeg) {

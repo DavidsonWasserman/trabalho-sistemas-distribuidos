@@ -19,7 +19,7 @@ consistentes quando as requisições forem distribuídas entre réplicas.
 | `auth-db`      | PostgreSQL com a tabela de usuários                         | só pela rede interna       |
 | `photo-db`     | PostgreSQL com os metadados e a análise das fotos            | só pela rede interna       |
 | `vision-service` | Detecção de objetos e OCR das fotos                        | só pela rede interna       |
-| `data-service` | Recebe fotos, coordena a análise e grava os metadados       | através do Nginx           |
+| `data-service` | Recebe fotos, coordena a análise e integra as consultas    | através do Nginx           |
 | `influxdb`     | InfluxDB 2 OSS com leituras sintéticas                      | só pela rede interna       |
 | `influx-check` | Consulta de teste executada sob demanda pelo Compose       | saída no terminal          |
 | `influx-query` | Consulta de leituras por período pelo serviço de dados     | JSON no terminal           |
@@ -86,6 +86,45 @@ quando o offset está ausente. JPEGs sem data ou com horário inválido recebem
 `400`. A resposta `201` inclui `id`, `capturedAt` em UTC, `originalBucket`,
 `originalKey`, `yoloResult` e `tesseractResult`. Reenviar a mesma foto
 gera um novo registro e uma nova análise.
+
+## Consulta por período
+
+Clientes e administradores autenticados podem consultar o mesmo intervalo de
+leituras e fotos pelo Nginx. Configure o token de leitura do InfluxDB conforme
+a seção [Leituras do InfluxDB](#leituras-do-influxdb). Com o Nginx já em execução,
+recrie o serviço de dados e reinicie o proxy após alterar o `.env`.
+
+```bash
+docker compose up -d data-service
+docker compose restart nginx
+```
+
+```bash
+curl -G http://localhost:8080/api/period \
+     -H "Authorization: Bearer $T" \
+     --data-urlencode 'start=2026-11-17T12:00:00Z' \
+     --data-urlencode 'end=2026-11-17T13:00:00Z'
+```
+
+`start` e `end` aceitam horários ISO 8601 em UTC com sufixo `Z` e até três
+casas decimais nos segundos. O início é inclusivo e o fim é exclusivo.
+A resposta `200` inclui os arrays `measurements` e `photos`. Cada foto é
+selecionada por `capturedAt` e inclui a referência ao original e os resultados
+persistidos da análise. Uma fonte sem registros retorna seu array vazio.
+
+- `includeVariations=true` acrescenta `variations` à resposta. Para
+  `temperature`, `humidity`, `pressure` e `rssi`, o valor é a última leitura
+  disponível menos a primeira, na unidade do campo. Com menos de dois
+  horários com valores para um campo, a variação é `null`.
+- `fromPhotoId=2&toPhotoId=3` acrescenta `photoComparison` com os dois IDs,
+  `detectionChanges` (classes YOLO cujas contagens mudaram, com `delta` da
+  segunda foto em relação à primeira) e `ocr` (campos `fromText`, `toText` e
+  `changed`). Quando falta o OCR de alguma foto, o texto correspondente e
+  `changed` são `null`. A comparação usa os resultados já gravados.
+
+Datas inválidas, início igual ou posterior ao fim e parâmetros de comparação
+inválidos recebem `400`. Token ausente ou inválido recebe `401`. Se algum dos
+IDs pedidos estiver fora do período ou não existir, a consulta recebe `404`.
 
 ## Metadados das fotos
 
@@ -181,8 +220,11 @@ retornam `[]`.
 
 Preencha `INFLUX_HOST` com o endereço da VPS, `INFLUX_ORG` com a organização
 e `INFLUX_TOKEN` com o token de leitura fornecido pelo professor. Execute
-`docker compose run --rm -T influx-query` com as datas desejadas. O Compose cria
-um contêiner com os valores do `.env` e consulta o bucket `horticultura`.
+`docker compose up -d data-service` e `docker compose restart nginx` para
+aplicar as alterações à API.
+Para verificar a conexão pelo terminal, execute
+`docker compose run --rm -T influx-query` com as datas desejadas. A API e o
+comando consultam o bucket `horticultura`.
 
 ## Rotas do autenticador
 
