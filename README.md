@@ -273,6 +273,42 @@ da conta cadastrada. O endpoint `GET /api/user/me` informa o perfil atual.
 O JWT emitido pelo login inclui `isAdmin` com o perfil no momento da emissão.
 Após a promoção, faça login novamente para atualizar o JWT.
 
+## Coleção de testes no Bruno
+
+A coleção em [`bruno/`](bruno/) testa a API pelo Nginx em
+`http://localhost:8080`. Suba a stack e configure o token de leitura do
+InfluxDB antes da execução. Cadastre duas contas conforme o
+[roteiro de demonstração](#roteiro-de-demonstração) e
+[promova uma delas](#perfis-de-cliente-e-administrador).
+
+Na raiz do repositório, copie a configuração de exemplo.
+
+```bash
+cp -n bruno/environments/exemplo.bru bruno/environments/local.bru
+```
+
+Em `bruno/environments/local.bru`, preencha os e-mails e as senhas das duas
+contas. O Git ignora esse arquivo. Ajuste `baseUrl` se a demonstração usar
+outro endereço do Nginx. O período padrão coincide com as leituras locais
+de exemplo e inclui a captura do JPEG sintético que acompanha a coleção
+(`2026-11-17T12:30:00Z`). Se alterar o período, mantenha esse instante no
+intervalo.
+
+No aplicativo Bruno, abra a pasta `bruno/`, selecione o ambiente `local`
+e rode a coleção inteira em sequência. No terminal, rode o comando abaixo
+com o Bruno CLI. A coleção foi validada na versão 4.3.0.
+[Documentação do Bruno CLI](https://docs.usebruno.com/bru-cli/overview)
+
+```bash
+cd bruno
+bru run --env local
+```
+
+As requisições reutilizam os tokens dos dois logins e o ID do upload na mesma
+execução. Cada rodada bem-sucedida grava um novo registro de foto. A suíte faz
+três tentativas de login por rodada, sujeitas ao limite do autenticador de
+dez tentativas a cada 15 minutos por IP.
+
 ## Roteiro de demonstração
 
 ```bash

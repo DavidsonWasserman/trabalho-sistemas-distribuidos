@@ -1,0 +1,22 @@
+meta {
+  name: Cliente solicita uma foto inexistente
+  type: http
+  seq: 16
+}
+
+get {
+  url: {{baseUrl}}/api/photos/2147483648/original
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{clientToken}}
+}
+
+tests {
+  test("Retorna 404 com o erro esperado", function () {
+    expect(res.getStatus()).to.equal(404);
+    expect(res.getBody().error).to.equal("Foto não encontrada.");
+  });
+}

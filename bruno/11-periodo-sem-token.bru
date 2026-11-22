@@ -1,0 +1,18 @@
+meta {
+  name: Consulta sem token
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/api/period?start={{periodStart}}&end={{periodEnd}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("Retorna 401 com o erro esperado", function () {
+    expect(res.getStatus()).to.equal(401);
+    expect(res.getBody().error).to.equal("Informe um token Bearer válido.");
+  });
+}

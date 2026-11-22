@@ -1,0 +1,25 @@
+meta {
+  name: Perfil de administrador
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/user/me
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{adminToken}}
+}
+
+tests {
+  test("Identifica a conta com isAdmin igual a true", function () {
+    expect(res.getStatus()).to.equal(200);
+    const profile = res.getBody();
+    expect(profile.email).to.equal(bru.getEnvVar("adminEmail"));
+    expect(profile.isAdmin).to.equal(true);
+    expect(profile).not.to.have.property("password");
+  });
+}

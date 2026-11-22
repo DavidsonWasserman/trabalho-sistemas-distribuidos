@@ -1,0 +1,25 @@
+meta {
+  name: Administrador consulta o período com variações
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/period?start={{periodStart}}&end={{periodEnd}}&includeVariations=true
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{adminToken}}
+}
+
+tests {
+  test("Lista a foto e retorna a variação de cada campo das leituras", function () {
+    expect(res.getStatus()).to.equal(200);
+    const { measurements, photos, variations } = res.getBody();
+    expect(measurements).to.be.an("array");
+    expect(photos.some(photo => photo.id === bru.getVar("photoId"))).to.equal(true);
+    expect(variations).to.have.all.keys("temperature", "humidity", "pressure", "rssi");
+  });
+}

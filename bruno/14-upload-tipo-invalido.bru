@@ -1,0 +1,27 @@
+meta {
+  name: Administrador envia um tipo de mídia inválido
+  type: http
+  seq: 14
+}
+
+post {
+  url: {{baseUrl}}/api/photos
+  body: text
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{adminToken}}
+  Content-Type: text/plain
+}
+
+body:text {
+  Este arquivo é texto.
+}
+
+tests {
+  test("Retorna 415 com o erro esperado", function () {
+    expect(res.getStatus()).to.equal(415);
+    expect(res.getBody().error).to.equal("Envie o JPEG original com Content-Type: image/jpeg.");
+  });
+}

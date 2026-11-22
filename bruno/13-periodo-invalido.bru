@@ -1,0 +1,22 @@
+meta {
+  name: Consulta com intervalo inválido
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/api/period?start={{periodStart}}&end={{periodStart}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{clientToken}}
+}
+
+tests {
+  test("Retorna 400 com o erro esperado", function () {
+    expect(res.getStatus()).to.equal(400);
+    expect(res.getBody().error).to.equal("O início deve ser anterior ao fim.");
+  });
+}

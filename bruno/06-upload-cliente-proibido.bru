@@ -1,0 +1,26 @@
+meta {
+  name: Cliente tenta enviar JPEG
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/photos
+  body: file
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{clientToken}}
+}
+
+body:file {
+  file: @file(fixtures/foto-exif.jpg) @contentType(image/jpeg)
+}
+
+tests {
+  test("Retorna 403 com o erro esperado", function () {
+    expect(res.getStatus()).to.equal(403);
+    expect(res.getBody().error).to.equal("Somente administradores podem enviar fotos.");
+  });
+}

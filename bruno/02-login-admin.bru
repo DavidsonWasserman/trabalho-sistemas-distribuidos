@@ -1,0 +1,35 @@
+meta {
+  name: Login do administrador
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/user/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {}
+}
+
+script:pre-request {
+  req.setBody({
+    email: bru.getEnvVar("adminEmail"),
+    password: bru.getEnvVar("adminPassword")
+  });
+}
+
+tests {
+  test("Retorna o token de administrador", function () {
+    expect(res.getStatus()).to.equal(200);
+    const token = res.getBody().token;
+    expect(token).to.be.a("string").and.not.be.empty;
+    bru.setVar("adminToken", token);
+  });
+}

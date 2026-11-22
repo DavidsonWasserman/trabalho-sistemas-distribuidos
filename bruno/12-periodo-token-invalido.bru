@@ -1,0 +1,22 @@
+meta {
+  name: Consulta com token inválido
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/api/period?start={{periodStart}}&end={{periodEnd}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer token-invalido
+}
+
+tests {
+  test("Retorna 401 com o erro esperado", function () {
+    expect(res.getStatus()).to.equal(401);
+    expect(res.getBody().error).to.equal("Token inválido ou expirado.");
+  });
+}
