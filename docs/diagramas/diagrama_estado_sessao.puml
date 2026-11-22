@@ -1,15 +1,12 @@
 @startuml diagrama_estado_sessao
-' Diagrama de estados UML - sessão do usuário no microsserviço de autenticação
-' Abrir em: https://www.plantuml.com/plantuml (colar o texto) ou extensão PlantUML do VS Code
-
-title Diagrama de estados — Sessão do usuário\n(microsserviço de autenticação e autorização)
+title Diagrama de estados — Sessão e acesso aos dados
+scale 1.5
 
 hide empty description
 skinparam shadowing false
 skinparam defaultFontName "DejaVu Sans"
-skinparam defaultFontSize 13
-skinparam ArrowColor #333333
-skinparam ArrowFontSize 12
+skinparam defaultFontSize 14
+skinparam ArrowColor #33475B
 skinparam state {
   BackgroundColor #F7F9FC
   BorderColor #33475B
@@ -17,51 +14,42 @@ skinparam state {
   StartColor #33475B
   EndColor #33475B
 }
-skinparam note {
-  BackgroundColor #FFF8E1
-  BorderColor #B8860B
-}
 
 state "Não autenticado" as NaoAutenticado
-state "Autenticando" as Autenticando : entry / contar tentativa de login\ndo / conferir e-mail e senha (hash bcrypt)
-state "Bloqueado temporariamente" as Bloqueado : entry / responder 429
-state "Sessão expirada" as Expirada : o cookie ainda existe,\nmas o token já não vale
+state "Autenticando" as Autenticando : do / aplicar limite por IP\ne conferir senha com bcrypt
+state "Login temporariamente\nlimitado" as Bloqueado
+state "Sessão expirada" as Expirada
+
+[*] -down-> NaoAutenticado
+NaoAutenticado -down-> Autenticando : enviar credenciais
+Autenticando -up-> NaoAutenticado : [credenciais inválidas] / 400
+Autenticando -right-> Bloqueado : [acima do limite] / 429
+Bloqueado -up-> NaoAutenticado : fim da janela de 15 min
 
 state "Sessão ativa" as Ativa {
   state "Aguardando requisição" as Aguardando
-  state "Validando token" as Validando : do / conferir assinatura\ne validade do JWT
-  state "Verificando permissão" as Permissao : do / checar se o usuário pode\nconsultar ou enviar
-  state "Acessando recurso" as Acessando : do / consultar leituras ou\nenviar e consultar fotos
+  state "Validando acesso" as Validando : do / conferir JWT e perfil atual\nem GET /api/user/me
+  state "Consultando dados" as Consultando : do / consultar o período no InfluxDB e no PostgreSQL\nou localizar a referência pelo ID\ne buscar o JPEG no SeaweedFS
+  state "Registrando foto" as Registrando : do / armazenar JPEG no SeaweedFS\ne gravar a análise no PostgreSQL
 
-  [*] --> Aguardando
-  Aguardando --> Validando : requisição com token
-  Validando --> Permissao : [token válido]
-  Permissao --> Acessando : [permitido]
-  Permissao --> Aguardando : [não permitido] /\nresponder 403
-  Acessando --> Aguardando : resposta enviada
+  [*] -down-> Aguardando
+  Aguardando -down-> Validando : requisição à API de dados
+  Validando -down-> Consultando : [cliente ou administrador]\nGET /api/period ou\nGET /api/photos/{id}/original
+  Validando -down-> Registrando : [administrador]\nPOST /api/photos
+  Validando -up-> Aguardando : [envio por cliente]\n/ responder 403
+  Consultando --> Aguardando : resposta
+  Registrando --> Aguardando : resposta
+  Validando -right-> [*] : [JWT ausente ou rejeitado]\n/ responder 401 e descartar JWT
 }
 
-[*] -down-> NaoAutenticado
-NaoAutenticado -down-> Autenticando : enviar e-mail e senha
-Autenticando -up-> NaoAutenticado : [credenciais inválidas] /\nresponder erro
-Autenticando -left-> Bloqueado : [mais de 10 tentativas\nem 15 min]
-Bloqueado -up-> NaoAutenticado : fim da janela\nde 15 min
-Autenticando -down-> Ativa : [credenciais válidas] /\nemitir JWT (2 h) e gravar cookie
-Ativa -right-> Expirada : after(2 h)
-Expirada -up-> NaoAutenticado : nova requisição /\nresponder 401 e apagar cookie
-Ativa -up-> NaoAutenticado : logout /\napagar cookie
-Ativa -up-> NaoAutenticado : token rejeitado\n(inválido ou usuário inexistente) /\nresponder 401 e apagar cookie
-
-note right of Expirada
-  O cookie dura 7 dias e o token 2 h:
-  por isso este estado existe.
-end note
+Autenticando -down-> Ativa : [credenciais válidas]\n/ emitir JWT
+Ativa -down-> Expirada : after(2 h)
+Expirada -left-> NaoAutenticado : nova requisição / 401\ne descartar JWT
+Ativa -up-> NaoAutenticado
+Ativa -left-> NaoAutenticado : logout / descartar JWT
 
 legend bottom left
-  Em "Sessão ativa" o usuário reutiliza o mesmo token em todas as
-  requisições, nos dois bancos, sem autenticar de novo.
-  A confirmar: papéis e permissões (quem consulta, quem envia fotos).
-  Valores (JWT de 2 h, 10 tentativas em 15 min, bcrypt) são os
-  do serviço de autenticação implementado.
+  O login aceita até 10 tentativas por IP em 15 min.
+  A tela mantém o JWT em memória e o envia como Bearer.
 endlegend
 @enduml
