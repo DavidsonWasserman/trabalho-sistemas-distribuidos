@@ -19,6 +19,18 @@ services:
       interval: 5s
       retries: 10
 
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    networks: [auth-cache]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   auth-service:
     build:
       context: ./auth-service
@@ -26,11 +38,15 @@ services:
       NODE_ENV: production
       PORT: 3001
       DATABASE_URL: postgres://auth:${AUTH_DB_PASSWORD:?defina AUTH_DB_PASSWORD no arquivo .env}@auth-db:5432/auth
+      REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET no arquivo .env}
       FRONTEND_URL: http://localhost:8080
       JET_LOGGER_MODE: console
+    networks: [default, auth-cache]
     depends_on:
       auth-db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   photo-db:
@@ -155,8 +171,13 @@ services:
     ports:
       - 8080:80
 
+networks:
+  auth-cache:
+    internal: true
+
 volumes:
   auth-db-data:
+  redis-data:
   photo-db-data:
   influxdb-data:
   influxdb-config:

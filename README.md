@@ -17,6 +17,7 @@ consistentes quando as requisições forem distribuídas entre réplicas.
 | `nginx`        | Tela do cliente e proxy reverso                              | http://localhost:8080      |
 | `auth-service` | Microsserviço de autenticação (adaptado do Nooneurose)      | só pela rede interna       |
 | `auth-db`      | PostgreSQL com a tabela de usuários                         | só pela rede interna       |
+| `redis`        | Contadores de tentativas de login compartilhados            | só pelo autenticador       |
 | `photo-db`     | PostgreSQL com os metadados e a análise das fotos            | só pela rede interna       |
 | `vision-service` | Detecção de objetos e OCR das fotos                        | só pela rede interna       |
 | `data-service` | Recebe fotos, coordena a análise e integra as consultas    | através do Nginx           |
@@ -42,9 +43,26 @@ docker compose up -d --build --wait
 docker compose ps
 ```
 
+Para executar com duas réplicas do autenticador:
+
+```bash
+docker compose up -d --build --wait --scale auth-service=2
+```
+
+O Nginx distribui as requisições entre as réplicas e aplica às rotas públicas da
+API um limite de 20 requisições por segundo por IP, com rajada de 60 e resposta
+HTTP 429 ao exceder. A busca de usuários e os endpoints de análise e saúde ficam
+na rede interna. O Nginx oculta a versão nas respostas públicas.
+
+O login usa uma cota adicional compartilhada no Redis. Cada IP tem dez POSTs
+em 15 minutos contados a partir da primeira tentativa, incluindo tentativas
+inválidas. As demais recebem HTTP 429 até a janela vencer. Se o Redis ficar
+indisponível, o login responde HTTP 503. Ao executar o autenticador fora do
+Compose, `REDIS_URL` tem como padrão `redis://127.0.0.1:6379`.
+
 Use `docker compose down` para parar os serviços. A opção `-v` também apaga
-os usuários cadastrados, os dados e credenciais locais do InfluxDB, os metadados
-das fotos e os originais armazenados no SeaweedFS.
+os usuários cadastrados, os contadores de login, os dados e credenciais locais
+do InfluxDB, os metadados das fotos e os originais armazenados no SeaweedFS.
 
 ## Armazenamento de fotos
 

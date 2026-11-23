@@ -4,6 +4,8 @@ import helmet from 'helmet';
 import logger from 'jet-logger';
 import morgan from 'morgan';
 
+import { APIPaths } from '@src/common/constants/Paths';
+import loginRateLimit from '@src/common/utils/middleware/rate_limit';
 import { RouteError } from '@src/common/utils/route-errors';
 import BaseRouter from '@src/routes/apiRouter';
 
@@ -18,9 +20,7 @@ const app = express();
 
 // **** Middleware **** //
 
-// Basic middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Nginx is the single public proxy and replaces the forwarded client IP.
 app.set('trust proxy', 1)
 
 if (EnvVars.NodeEnv === NodeEnvs.PRODUCTION) {
@@ -43,11 +43,17 @@ if (EnvVars.NodeEnv === NodeEnvs.PRODUCTION) {
   app.use(helmet());
 }
 
-// Add APIs, must be after middleware
+// Count every login POST that reaches the service, even if its body is invalid.
+app.post(APIPaths.User.Login(), loginRateLimit);
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(BaseRouter);
 
 // Add error handler
 app.use((err: Error, _: Request, res: Response, next: NextFunction) => {
+  if (res.headersSent) {
+    return next(err);
+  }
   if (EnvVars.NodeEnv !== NodeEnvs.TEST.valueOf()) {
     logger.err(err, true);
   }
@@ -60,7 +66,6 @@ app.use((err: Error, _: Request, res: Response, next: NextFunction) => {
   else {
     res.status(500).json({ error: 'An unknown error ocurred' })
   }
-  return next(err);
 });
 
 /******************************************************************************

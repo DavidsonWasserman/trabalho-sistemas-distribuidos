@@ -10,7 +10,6 @@ import EnvVars from '@src/common/constants/env'
 import authorize from '@src/common/utils/middleware/authorize'
 import { UpdateUserData } from '@src/services/UserService/UserService'
 import User from '@src/models/common/User'
-import loginRateLimit from '@src/common/utils/middleware/rate_limit'
 import { isValidEmail } from '@src/common/utils/validators'
 
 const userRouter = Router()
@@ -58,7 +57,7 @@ userRouter.post(APIPaths.User._(), async function(req: Req, res: Res) {
     }
 })
 
-userRouter.post(APIPaths.User.Login(), loginRateLimit, async function(req: Req, res: Res) {
+userRouter.post(APIPaths.User.Login(), async function(req: Req, res: Res) {
     const services = getServices()
 
     if (req.headers['content-type'] !== 'application/json') {
@@ -97,7 +96,7 @@ userRouter.get(APIPaths.User.byId(), authorize, async function(req: Req, res: Re
     res.json(sanitizeUser(user))
 })
 
-// Usada pelos outros serviços (e pelo Nginx) para conferir se o token é válido
+// Consulta pública autenticada, também usada pelo serviço de dados para validar o token.
 userRouter.get(APIPaths.User.Me(), authorize, function(req: Req, res: Res) {
     if (!req.user)
         throw new RouteError(500, 'error missing user')

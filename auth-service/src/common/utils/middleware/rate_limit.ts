@@ -1,50 +1,56 @@
-import { NextFunction } from "express";
-import { Req, Res } from "@src/routes/common/express-types";
-import { RouteError } from "../route-errors";
-import logger from 'jet-logger'
+import type { NextFunction, Request, Response } from 'express';
+import Redis from 'ioredis';
+import logger from 'jet-logger';
 
-type RateLimitEntry = {
-    count: number;
-    resetAt: number;
-};
+import EnvVars from '@src/common/constants/env';
+import { RouteError } from '../route-errors';
 
-const attempts = new Map<string, RateLimitEntry>();
+const WINDOW_SECONDS = 15 * 60;
+const MAX_ATTEMPTS = 10;
 
-/**
- * Middleware que limita tentativas de login por IP.
- * 10 tentativas a cada 15 minutos.
- */
-export default function loginRateLimit(req: Req, _res: Res, next: NextFunction) {
-    const windowMs = 15 * 60 * 1000; // 15 minutos
-    const maxAttempts = 10;
+const redis = new Redis(EnvVars.RedisUrl, {
+    lazyConnect: true,
+    enableOfflineQueue: false,
+    autoResendUnfulfilledCommands: false,
+    connectTimeout: 1_000,
+    commandTimeout: 1_000,
+});
 
-    const key = req.ip ?? req.headers['x-forwarded-for']?.toString() ?? 'unknown'; // válido por causa do 'trust proxy'
-    logger.info(`registering login attempt for ${key}.`)
+redis.on('error', (error: Error) => logger.warn(`Login rate limiter Redis: ${error.message}`));
 
-    if (key === 'unknown') {
-        throw new RouteError(500, 'Error missing IP.')
+// Redis executes both operations atomically. Only the first attempt sets the TTL.
+const REGISTER_ATTEMPT = `
+local attempts = redis.call('INCR', KEYS[1])
+if attempts == 1 then
+    redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+return attempts
+`;
+
+export function startLoginRateLimit() {
+    void redis.connect().catch((error: Error) => {
+        logger.warn(`Could not connect the login rate limiter: ${error.message}`);
+    });
+}
+
+export default async function loginRateLimit(req: Request, _res: Response, next: NextFunction) {
+    if (!req.ip) {
+        throw new RouteError(500, 'Error missing IP.');
     }
 
-    const now = Date.now();
-    const current = attempts.get(key)
-
-    if (!current) {
-        attempts.set(key, { count: 1, resetAt: now + windowMs })
-        next()
-        return
+    let attempts: unknown;
+    try {
+        attempts = await redis.eval(REGISTER_ATTEMPT, 1, `auth:login:${req.ip}`, WINDOW_SECONDS);
+    } catch {
+        throw new RouteError(503, 'Login temporarily unavailable. Try again later.');
     }
 
-    if (current.resetAt <= now) {
-        attempts.set(key, { count: 1, resetAt: now + windowMs });
-        next();
-        return;
+    if (typeof attempts !== 'number') {
+        throw new RouteError(503, 'Login temporarily unavailable. Try again later.');
     }
-
-    current.count += 1
-    if (current.count > maxAttempts) {
+    if (attempts > MAX_ATTEMPTS) {
         throw new RouteError(429, 'Too many login attempts. Try again later.');
     }
 
-    attempts.set(key, current);
     next();
 }
