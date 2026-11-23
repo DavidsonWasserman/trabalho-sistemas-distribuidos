@@ -43,8 +43,8 @@ main { padding-block: clamp(2rem, 6vw, 4rem); }
 .login { max-width: 28rem; margin-inline: auto; }
 .login form { margin-top: 1.5rem; }
 label { display: block; margin-bottom: .4rem; font-weight: 600; }
-input, button { font: inherit; border-radius: .45rem; min-height: 2.8rem; }
-input {
+input, select, button { font: inherit; border-radius: .45rem; min-height: 2.8rem; }
+input, select {
   width: 100%;
   min-width: 0;
   padding: .55rem .7rem;
@@ -82,6 +82,8 @@ button:disabled { opacity: .65; cursor: wait; }
 .message:not(:empty) { margin-top: 1rem; }
 .message[data-error] { color: #982d2a; }
 #results > section { margin-top: 2rem; }
+#period-alerts { margin: 0; padding-inline-start: 1.25rem; }
+#period-alerts li + li { margin-top: .75rem; }
 .table-wrap { padding: 0; overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; white-space: nowrap; }
 th, td { padding: .75rem 1rem; text-align: start; }
@@ -89,11 +91,21 @@ th { background: #e8f0e8; }
 tbody tr + tr { border-top: 1px solid #d5e0d4; }
 td { font-variant-numeric: tabular-nums; }
 
-.photo-grid {
+.variations, .chart-grid, .photo-grid, .photo-fields {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
   gap: 1rem;
 }
+
+.variations { grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); }
+.variations dd { font-variant-numeric: tabular-nums; }
+#summary-title + .panel .hint { margin-top: 0; }
+.chart-grid, .photo-grid, .photo-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.chart-grid:not(:empty), .photo-grid { margin-block: 1rem; }
+.chart-grid figure { margin: 0; }
+.chart-grid figcaption { font-weight: 650; }
+.chart-grid canvas { display: block; width: 100%; height: auto; margin-top: .5rem; }
+#photo-comparison { margin-top: 1rem; }
+#photo-comparison ul { overflow-wrap: anywhere; }
 
 .photo { padding: 0; overflow: hidden; }
 .photo-preview {
@@ -110,5 +122,5 @@ dd { margin-top: .25rem; }
 .ocr { white-space: pre-wrap; }
 
 @media (max-width: 42rem) {
-  .period-fields { grid-template-columns: 1fr; }
+  .period-fields, .chart-grid, .photo-grid, .photo-fields { grid-template-columns: 1fr; }
 }

@@ -111,8 +111,27 @@ gera um novo registro e uma nova análise.
 
 Abra [a tela do cliente](http://localhost:8080/) com a stack em execução.
 Entre com uma conta cadastrada, informe início e fim em UTC e clique em
-**Consultar**. A tela mostra as leituras, os JPEGs, os objetos detectados e o
-texto reconhecido em cada foto. Se o intervalo estiver vazio, a tela avisa.
+**Consultar**. O painel mostra gráficos de temperatura, umidade, pressão e RSSI,
+uma tabela com os valores exatos e a variação entre a primeira e a última leitura
+disponível de cada medida. A variação da umidade aparece em pontos percentuais.
+
+Em **Alertas do período**, cada condição atingida mostra o limite, a quantidade
+de leituras e o menor ou maior valor observado, com o horário UTC da primeira
+ocorrência desse valor. O painel aplica estes limites de demonstração às leituras
+do intervalo, incluindo a igualdade com o limite e ignorando valores ausentes.
+
+| Medida | Alerta de valor baixo | Alerta de valor alto |
+| --- | ---: | ---: |
+| Temperatura | ≤ 22 °C | ≥ 24 °C |
+| Umidade relativa | ≤ 66% | ≥ 70% |
+| Pressão | ≤ 101 270 Pa | ≥ 101 300 Pa |
+
+Em **Fotos e análises**, escolha uma foto de referência para ver o JPEG original,
+o horário de captura, os objetos detectados e o texto reconhecido. Se houver
+outra foto no intervalo, selecione-a em **Foto para comparar**. O painel exibe
+as duas fotos e as diferenças calculadas pelo serviço de dados na consulta,
+incluindo a variação de contagem por classe e a indicação de mudança no OCR.
+
 O cadastro de uma conta cliente está no
 [roteiro de demonstração](#roteiro-de-demonstração).
 

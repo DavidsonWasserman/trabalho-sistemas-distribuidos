@@ -31,8 +31,8 @@
 
     <section id="query-view" hidden>
       <div class="intro">
-        <h1>Consulta por período</h1>
-        <p>Escolha o intervalo para ver as leituras dos sensores e as fotos capturadas.</p>
+        <h1>Painel de exploração</h1>
+        <p>Escolha um intervalo para explorar as leituras dos sensores e comparar fotos da horta.</p>
       </div>
       <form id="period-form" class="panel">
         <div class="period-fields">
@@ -51,9 +51,24 @@
       <p id="query-status" class="message" role="status"></p>
 
       <div id="results" hidden>
+        <section aria-labelledby="alerts-title">
+          <h2 id="alerts-title">Alertas do período</h2>
+          <div class="panel">
+            <ul id="period-alerts" hidden></ul>
+            <p id="period-alerts-empty" hidden></p>
+          </div>
+        </section>
+        <section aria-labelledby="summary-title">
+          <h2 id="summary-title">Resumo do período</h2>
+          <div class="panel">
+            <p class="hint">Variação da primeira à última leitura disponível de cada medida.</p>
+            <dl id="variations" class="variations"></dl>
+          </div>
+        </section>
         <section aria-labelledby="measurements-title">
           <h2 id="measurements-title">Leituras</h2>
           <p id="measurements-empty" class="panel" hidden>Nenhuma leitura neste período.</p>
+          <div id="measurement-charts" class="chart-grid"></div>
           <div id="measurements-table" class="panel table-wrap" role="region"
                aria-labelledby="measurements-title" tabindex="0">
             <table>
@@ -73,7 +88,24 @@
         <section aria-labelledby="photos-title">
           <h2 id="photos-title">Fotos e análises</h2>
           <p id="photos-empty" class="panel" hidden>Nenhuma foto neste período.</p>
-          <div id="photos" class="photo-grid"></div>
+          <div id="photo-controls" class="panel">
+            <div class="photo-fields">
+              <div>
+                <label for="from-photo">Foto de referência</label>
+                <select id="from-photo"></select>
+              </div>
+              <div id="to-photo-field">
+                <label for="to-photo">Foto para comparar</label>
+                <select id="to-photo"></select>
+              </div>
+            </div>
+            <p id="comparison-status" class="message" role="status"></p>
+            <div id="photo-comparison" hidden></div>
+          </div>
+          <div class="photo-grid">
+            <div id="from-photo-detail" hidden></div>
+            <div id="to-photo-detail" hidden></div>
+          </div>
         </section>
       </div>
     </section>
