@@ -1,0 +1,33 @@
+meta {
+  name: Login com senha incorreta
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/user/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {}
+}
+
+script:pre-request {
+  req.setBody({
+    email: bru.getEnvVar("clientEmail"),
+    password: "x"
+  });
+}
+
+tests {
+  test("Retorna 400 com o erro esperado", function () {
+    expect(res.getStatus()).to.equal(400);
+    expect(res.getBody().error).to.equal("Wrong email or password");
+  });
+}

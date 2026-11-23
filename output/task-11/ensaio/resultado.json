@@ -1,0 +1,137 @@
+{
+  "fotos": {
+    "caneca-com-inscricao.jpg": {
+      "bytes": 586119,
+      "sha256": "10f0df15455c9292ce0b99e494913d15395af4c880e77a870ad487f3ac016517",
+      "DateTimeOriginal": "2007:11:13 15:30:06",
+      "OffsetTimeOriginal": null,
+      "capturedAtEsperado": "2007-11-13T17:30:06.000Z",
+      "upload": {
+        "http": 201,
+        "id": 1,
+        "capturedAt": "2007-11-13T17:30:06.000Z",
+        "originalBucket": "fotos",
+        "originalKey": "2007-11-13T17:30:06.000Z-730485d0-54b8-4e81-bb52-61288416e4b6.jpg",
+        "yoloResult": [
+          {
+            "bbox": [
+              107.84904479980469,
+              415.22479248046875,
+              1629.596435546875,
+              2239.9658203125
+            ],
+            "className": "vase",
+            "confidence": 0.5133741497993469
+          },
+          {
+            "bbox": [
+              128.0556640625,
+              425.42303466796875,
+              1634.6234130859375,
+              2229.659912109375
+            ],
+            "className": "cup",
+            "confidence": 0.27430960536003113
+          }
+        ],
+        "tesseractResult": {
+          "text": ""
+        }
+      },
+      "sha256OriginalRecuperado": "10f0df15455c9292ce0b99e494913d15395af4c880e77a870ad487f3ac016517"
+    },
+    "vaso-de-terracota.jpg": {
+      "bytes": 148887,
+      "sha256": "93c869485171ebe056db6e306c82f4ca46d4df9e70950ddff44561b2ec200e0b",
+      "DateTimeOriginal": "2005:02:28 10:56:44",
+      "OffsetTimeOriginal": null,
+      "capturedAtEsperado": "2005-02-28T13:56:44.000Z",
+      "upload": {
+        "http": 201,
+        "id": 2,
+        "capturedAt": "2005-02-28T13:56:44.000Z",
+        "originalBucket": "fotos",
+        "originalKey": "2005-02-28T13:56:44.000Z-ff395d45-8500-42fe-9ddf-62c4981ca6d0.jpg",
+        "yoloResult": [],
+        "tesseractResult": null
+      },
+      "sha256OriginalRecuperado": "93c869485171ebe056db6e306c82f4ca46d4df9e70950ddff44561b2ec200e0b"
+    },
+    "planta-em-vaso.jpg": {
+      "bytes": 6948620,
+      "sha256": "b5b42bc50bc610f38e5d345fbda950c8e9bd93a2d66a064f4dfbe456e6ba102e",
+      "DateTimeOriginal": "2020:06:05 18:03:14",
+      "OffsetTimeOriginal": null,
+      "capturedAtEsperado": "2020-06-05T21:03:14.000Z",
+      "upload": {
+        "http": 201,
+        "id": 3,
+        "capturedAt": "2020-06-05T21:03:14.000Z",
+        "originalBucket": "fotos",
+        "originalKey": "2020-06-05T21:03:14.000Z-1f947319-9fea-48b7-bfbf-89191031ea7c.jpg",
+        "yoloResult": [],
+        "tesseractResult": null
+      },
+      "sha256OriginalRecuperado": "b5b42bc50bc610f38e5d345fbda950c8e9bd93a2d66a064f4dfbe456e6ba102e"
+    }
+  },
+  "contaDeEnsaio": {
+    "email": "ensaio-task11-70fe43334df8@example.com",
+    "perfilAoFinal": "cliente"
+  },
+  "consulta": {
+    "start": "2005-02-28T13:56:44.000Z",
+    "end": "2020-06-05T21:03:15.000Z",
+    "http": 200,
+    "leituras": 0,
+    "fotosDoLote": [
+      {
+        "id": 2,
+        "capturedAt": "2005-02-28T13:56:44.000Z",
+        "originalBucket": "fotos",
+        "originalKey": "2005-02-28T13:56:44.000Z-ff395d45-8500-42fe-9ddf-62c4981ca6d0.jpg",
+        "yoloResult": [],
+        "tesseractResult": null
+      },
+      {
+        "id": 1,
+        "capturedAt": "2007-11-13T17:30:06.000Z",
+        "originalBucket": "fotos",
+        "originalKey": "2007-11-13T17:30:06.000Z-730485d0-54b8-4e81-bb52-61288416e4b6.jpg",
+        "yoloResult": [
+          {
+            "bbox": [
+              107.84904479980469,
+              415.22479248046875,
+              1629.596435546875,
+              2239.9658203125
+            ],
+            "className": "vase",
+            "confidence": 0.5133741497993469
+          },
+          {
+            "bbox": [
+              128.0556640625,
+              425.42303466796875,
+              1634.6234130859375,
+              2229.659912109375
+            ],
+            "className": "cup",
+            "confidence": 0.27430960536003113
+          }
+        ],
+        "tesseractResult": {
+          "text": ""
+        }
+      },
+      {
+        "id": 3,
+        "capturedAt": "2020-06-05T21:03:14.000Z",
+        "originalBucket": "fotos",
+        "originalKey": "2020-06-05T21:03:14.000Z-1f947319-9fea-48b7-bfbf-89191031ea7c.jpg",
+        "yoloResult": [],
+        "tesseractResult": null
+      }
+    ]
+  }
+}

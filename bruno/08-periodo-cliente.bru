@@ -1,0 +1,32 @@
+meta {
+  name: Cliente consulta o período
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/period?start={{periodStart}}&end={{periodEnd}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{clientToken}}
+}
+
+tests {
+  test("Lista leituras e os metadados persistidos da foto enviada", function () {
+    expect(res.getStatus()).to.equal(200);
+    const { measurements, photos } = res.getBody();
+    expect(measurements).to.be.an("array");
+    const start = Date.parse(bru.getEnvVar("periodStart"));
+    const end = Date.parse(bru.getEnvVar("periodEnd"));
+    for (const reading of measurements) {
+      const timestamp = Date.parse(reading.timestamp);
+      expect(timestamp).to.be.at.least(start).and.below(end);
+    }
+    expect(photos).to.be.an("array");
+    const uploaded = photos.find(photo => photo.id === bru.getVar("photoId"));
+    expect(uploaded).to.deep.equal(bru.getVar("uploadedPhoto"));
+  });
+}

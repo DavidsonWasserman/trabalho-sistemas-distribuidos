@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Monitoramento da horta</title>
+  <link rel="stylesheet" href="/assets/client.css">
+  <script src="/assets/client.js" type="module"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="shell header-content">
+      <span>Monitoramento da horta</span>
+      <button id="logout" class="secondary" type="button" hidden>Sair</button>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section id="login-view" class="panel login">
+      <h1>Entrar</h1>
+      <p>Use sua conta para consultar leituras e fotos da horta.</p>
+      <form id="login-form">
+        <label for="email">E-mail</label>
+        <input id="email" name="email" type="email" autocomplete="username" required>
+        <label for="password">Senha</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+        <button type="submit">Entrar</button>
+      </form>
+      <p id="login-status" class="message" role="status"></p>
+    </section>
+
+    <section id="query-view" hidden>
+      <div class="intro">
+        <h1>Painel de exploração</h1>
+        <p>Escolha um intervalo para explorar as leituras dos sensores e comparar fotos da horta.</p>
+      </div>
+      <form id="period-form" class="panel">
+        <div class="period-fields">
+          <div>
+            <label for="start">Início (UTC)</label>
+            <input id="start" name="start" type="datetime-local" step="1" required>
+          </div>
+          <div>
+            <label for="end">Fim (UTC)</label>
+            <input id="end" name="end" type="datetime-local" step="1" required>
+          </div>
+          <button type="submit">Consultar</button>
+        </div>
+        <p class="hint">O início é inclusivo e o fim é exclusivo.</p>
+      </form>
+      <p id="query-status" class="message" role="status"></p>
+
+      <div id="results" hidden>
+        <section aria-labelledby="alerts-title">
+          <h2 id="alerts-title">Alertas do período</h2>
+          <div class="panel">
+            <ul id="period-alerts" hidden></ul>
+            <p id="period-alerts-empty" hidden></p>
+          </div>
+        </section>
+        <section aria-labelledby="summary-title">
+          <h2 id="summary-title">Resumo do período</h2>
+          <div class="panel">
+            <p class="hint">Variação da primeira à última leitura disponível de cada medida.</p>
+            <dl id="variations" class="variations"></dl>
+          </div>
+        </section>
+        <section aria-labelledby="measurements-title">
+          <h2 id="measurements-title">Leituras</h2>
+          <p id="measurements-empty" class="panel" hidden>Nenhuma leitura neste período.</p>
+          <div id="measurement-charts" class="chart-grid"></div>
+          <div id="measurements-table" class="panel table-wrap" role="region"
+               aria-labelledby="measurements-title" tabindex="0">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Horário (UTC)</th>
+                  <th scope="col">Temperatura</th>
+                  <th scope="col">Umidade</th>
+                  <th scope="col">Pressão</th>
+                  <th scope="col">RSSI</th>
+                </tr>
+              </thead>
+              <tbody id="measurements"></tbody>
+            </table>
+          </div>
+        </section>
+        <section aria-labelledby="photos-title">
+          <h2 id="photos-title">Fotos e análises</h2>
+          <p id="photos-empty" class="panel" hidden>Nenhuma foto neste período.</p>
+          <div id="photo-controls" class="panel">
+            <div class="photo-fields">
+              <div>
+                <label for="from-photo">Foto de referência</label>
+                <select id="from-photo"></select>
+              </div>
+              <div id="to-photo-field">
+                <label for="to-photo">Foto para comparar</label>
+                <select id="to-photo"></select>
+              </div>
+            </div>
+            <p id="comparison-status" class="message" role="status"></p>
+            <div id="photo-comparison" hidden></div>
+          </div>
+          <div class="photo-grid">
+            <div id="from-photo-detail" hidden></div>
+            <div id="to-photo-detail" hidden></div>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <template id="photo-card">
+    <article class="panel photo">
+      <div class="photo-preview">
+        <img alt="" hidden>
+        <p class="photo-status">Carregando foto…</p>
+      </div>
+      <div class="photo-analysis">
+        <h3></h3>
+        <time></time>
+        <dl>
+          <dt>Objetos identificados</dt>
+          <dd class="objects"></dd>
+          <dt>Texto reconhecido</dt>
+          <dd class="ocr"></dd>
+        </dl>
+      </div>
+    </article>
+  </template>
+</body>
+</html>

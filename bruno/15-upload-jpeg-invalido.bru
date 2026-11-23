@@ -1,0 +1,27 @@
+meta {
+  name: Administrador envia um JPEG inválido
+  type: http
+  seq: 15
+}
+
+post {
+  url: {{baseUrl}}/api/photos
+  body: text
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{adminToken}}
+  Content-Type: image/jpeg
+}
+
+body:text {
+  Este arquivo é texto.
+}
+
+tests {
+  test("Retorna 400 com o erro esperado", function () {
+    expect(res.getStatus()).to.equal(400);
+    expect(res.getBody().error).to.equal("O corpo da requisição deve conter um JPEG válido.");
+  });
+}

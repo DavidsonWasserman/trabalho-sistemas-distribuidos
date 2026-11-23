@@ -1,27 +1,277 @@
 # Trabalho de Sistemas Distribuídos
 
-Sistema em contêineres Docker com um microsserviço de autenticação, um banco de
-série temporal (InfluxDB) e um armazenamento de fotos, atrás de um Nginx.
+Sistema em contêineres Docker com autenticação, leituras no InfluxDB,
+metadados de fotos no PostgreSQL e originais no SeaweedFS, atrás de um Nginx.
 O planejamento e os diagramas UML estão em `docs/`.
+
+## Requisito de escalabilidade horizontal
+
+Os serviços devem poder operar com múltiplas réplicas sem perda de
+funcionalidade. As operações, os dados e as regras do sistema devem permanecer
+consistentes quando as requisições forem distribuídas entre réplicas.
 
 ## O que já roda
 
 | Serviço        | O que é                                                     | Acesso                     |
 |----------------|-------------------------------------------------------------|----------------------------|
-| `nginx`        | Proxy reverso, única porta aberta para fora                 | http://localhost:8080      |
+| `nginx`        | Tela do cliente e proxy reverso                              | http://localhost:8080      |
 | `auth-service` | Microsserviço de autenticação (adaptado do Nooneurose)      | só pela rede interna       |
 | `auth-db`      | PostgreSQL com a tabela de usuários                         | só pela rede interna       |
+| `redis`        | Contadores de tentativas de login compartilhados            | só pelo autenticador       |
+| `photo-db`     | PostgreSQL com os metadados e a análise das fotos            | só pela rede interna       |
+| `vision-service` | Detecção de objetos e OCR das fotos                        | só pela rede interna       |
+| `data-service` | Recebe fotos, coordena a análise e integra as consultas    | através do Nginx           |
+| `influxdb`     | InfluxDB 2 OSS com leituras sintéticas                      | só pela rede interna       |
+| `influx-check` | Consulta de teste executada sob demanda pelo Compose       | saída no terminal          |
+| `influx-query` | Consulta de leituras por período pelo serviço de dados     | JSON no terminal           |
+| `seaweedfs`    | Armazenamento dos originais das fotos via API S3            | só pela rede interna       |
 
 ## Como subir
 
 ```bash
-cp .env.example .env      # depois edite o .env e troque as duas senhas
-docker compose up -d --build
-docker compose ps         # os três serviços devem aparecer como "running"
+cp -n .env.example .env
 ```
 
-Para parar: `docker compose down`. Para apagar também os usuários cadastrados:
-`docker compose down -v`.
+No `.env`, preencha as credenciais do autenticador, `PHOTO_DB_PASSWORD`,
+`INFLUX_LOCAL_ADMIN_PASSWORD` (ao menos 8 caracteres) e
+`INFLUX_LOCAL_ADMIN_TOKEN` (por exemplo, gerado com `openssl rand -hex 32`).
+Prepare também as credenciais do SeaweedFS conforme a seção
+[Armazenamento de fotos](#armazenamento-de-fotos). Em seguida, use o Docker Compose v2.
+
+```bash
+docker compose up -d --build --wait
+docker compose ps
+```
+
+Para executar com duas réplicas do autenticador:
+
+```bash
+docker compose up -d --build --wait --scale auth-service=2
+```
+
+O Nginx distribui as requisições entre as réplicas e aplica às rotas públicas da
+API um limite de 20 requisições por segundo por IP, com rajada de 60 e resposta
+HTTP 429 ao exceder. A busca de usuários e os endpoints de análise e saúde ficam
+na rede interna. O Nginx oculta a versão nas respostas públicas.
+
+O login usa uma cota adicional compartilhada no Redis. Cada IP tem dez POSTs
+em 15 minutos contados a partir da primeira tentativa, incluindo tentativas
+inválidas. As demais recebem HTTP 429 até a janela vencer. Se o Redis ficar
+indisponível, o login responde HTTP 503. Ao executar o autenticador fora do
+Compose, `REDIS_URL` tem como padrão `redis://127.0.0.1:6379`.
+
+Use `docker compose down` para parar os serviços. A opção `-v` também apaga
+os usuários cadastrados, os contadores de login, os dados e credenciais locais
+do InfluxDB, os metadados das fotos e os originais armazenados no SeaweedFS.
+
+## Armazenamento de fotos
+
+```bash
+mkdir -p secrets
+cp -n seaweedfs/s3.example.json secrets/seaweedfs-s3.json
+```
+
+Em `secrets/seaweedfs-s3.json`, substitua cada `secretKey` por um valor
+diferente, gerado com `openssl rand -hex 32`. O arquivo local é ignorado
+pelo Git e precisa ser legível pelo usuário `seaweed` do contêiner (UID 1000).
+
+Para subir somente o armazenamento, execute `docker compose up -d --wait seaweedfs`.
+O SeaweedFS cria o bucket `fotos` na inicialização e mantém os arquivos e os
+metadados no volume `seaweedfs-data`.
+
+Os serviços da rede interna usam o endpoint `http://seaweedfs:8333` com
+endereçamento S3 por caminho (path-style). Use a identidade `envio` para
+gravar objetos e a identidade `consulta` para listar e recuperar objetos
+do bucket. Uma tentativa de gravação com `consulta` recebe `403 AccessDenied`.
+No `.env`, preencha `PHOTO_S3_ACCESS_KEY` e `PHOTO_S3_SECRET_KEY` com o
+`accessKey` e o `secretKey` da identidade `envio` do arquivo local.
+Para exibir os originais na tela, preencha também `PHOTO_S3_READ_ACCESS_KEY`
+e `PHOTO_S3_READ_SECRET_KEY` com os valores da identidade `consulta`.
+
+## Envio de fotos
+
+Com a stack em execução, faça login com uma conta administradora e use o
+token retornado. O corpo é o arquivo JPEG original, com limite de 10 MiB.
+
+```bash
+curl -i http://localhost:8080/api/photos \
+     -H "Authorization: Bearer $T" \
+     -H 'Content-Type: image/jpeg' \
+     --data-binary @foto.jpg
+```
+
+O horário vem de `DateTimeOriginal` no EXIF. O sistema respeita
+`OffsetTimeOriginal` quando a câmera o informa e usa `America/Sao_Paulo`
+quando o offset está ausente. JPEGs sem data ou com horário inválido recebem
+`400`. A resposta `201` inclui `id`, `capturedAt` em UTC, `originalBucket`,
+`originalKey`, `yoloResult` e `tesseractResult`. Reenviar a mesma foto
+gera um novo registro e uma nova análise.
+
+## Consulta por período
+
+Abra [a tela do cliente](http://localhost:8080/) com a stack em execução.
+Entre com uma conta cadastrada, informe início e fim em UTC e clique em
+**Consultar**. O painel mostra gráficos de temperatura, umidade, pressão e RSSI,
+uma tabela com os valores exatos e a variação entre a primeira e a última leitura
+disponível de cada medida. A variação da umidade aparece em pontos percentuais.
+
+Em **Alertas do período**, cada condição atingida mostra o limite, a quantidade
+de leituras e o menor ou maior valor observado, com o horário UTC da primeira
+ocorrência desse valor. O painel aplica estes limites de demonstração às leituras
+do intervalo, incluindo a igualdade com o limite e ignorando valores ausentes.
+
+| Medida | Alerta de valor baixo | Alerta de valor alto |
+| --- | ---: | ---: |
+| Temperatura | ≤ 22 °C | ≥ 24 °C |
+| Umidade relativa | ≤ 66% | ≥ 70% |
+| Pressão | ≤ 101 270 Pa | ≥ 101 300 Pa |
+
+Em **Fotos e análises**, escolha uma foto de referência para ver o JPEG original,
+o horário de captura, os objetos detectados e o texto reconhecido. Se houver
+outra foto no intervalo, selecione-a em **Foto para comparar**. O painel exibe
+as duas fotos e as diferenças calculadas pelo serviço de dados na consulta,
+incluindo a variação de contagem por classe e a indicação de mudança no OCR.
+
+O cadastro de uma conta cliente está no
+[roteiro de demonstração](#roteiro-de-demonstração).
+
+Clientes e administradores autenticados podem consultar o mesmo intervalo de
+leituras e fotos pelo Nginx. Configure o token de leitura do InfluxDB conforme
+a seção [Leituras do InfluxDB](#leituras-do-influxdb). Com o Nginx já em execução,
+recrie o serviço de dados e reinicie o proxy após alterar o `.env`.
+
+```bash
+docker compose up -d data-service
+docker compose restart nginx
+```
+
+```bash
+curl -G http://localhost:8080/api/period \
+     -H "Authorization: Bearer $T" \
+     --data-urlencode 'start=2026-11-17T12:00:00Z' \
+     --data-urlencode 'end=2026-11-17T13:00:00Z'
+```
+
+`start` e `end` aceitam horários ISO 8601 em UTC com sufixo `Z` e até três
+casas decimais nos segundos. O início é inclusivo e o fim é exclusivo.
+A resposta `200` inclui os arrays `measurements` e `photos`. Cada foto é
+selecionada por `capturedAt` e inclui a referência ao original e os resultados
+persistidos da análise. Uma fonte sem registros retorna seu array vazio.
+Para obter o JPEG original, use `GET /api/photos/<id>/original` com o mesmo token.
+
+- `includeVariations=true` acrescenta `variations` à resposta. Para
+  `temperature`, `humidity`, `pressure` e `rssi`, o valor é a última leitura
+  disponível menos a primeira, na unidade do campo. Com menos de dois
+  horários com valores para um campo, a variação é `null`.
+- `fromPhotoId=2&toPhotoId=3` acrescenta `photoComparison` com os dois IDs,
+  `detectionChanges` (classes YOLO cujas contagens mudaram, com `delta` da
+  segunda foto em relação à primeira) e `ocr` (campos `fromText`, `toText` e
+  `changed`). Quando falta o OCR de alguma foto, o texto correspondente e
+  `changed` são `null`. A comparação usa os resultados já gravados.
+
+Datas inválidas, início igual ou posterior ao fim e parâmetros de comparação
+inválidos recebem `400`. Token ausente ou inválido recebe `401`. Se algum dos
+IDs pedidos estiver fora do período ou não existir, a consulta recebe `404`.
+
+## Metadados das fotos
+
+Para subir só o banco de metadados, execute `docker compose up -d --wait photo-db`.
+O serviço cria a tabela `photo_metadata` na primeira inicialização do volume
+`photo-db-data`. Na rede interna, a conexão usa o host `photo-db`, a porta
+`5432`, o banco e o usuário `photos` e a senha `PHOTO_DB_PASSWORD`.
+
+O módulo `photoMetadata.ts` do serviço de dados recebe um cliente `postgres`
+pela função `createPhotoMetadataRepository`. Use `insertPhotoMetadata` para
+gravar o horário de captura, o bucket e a chave S3 do original e os resultados
+do YOLO e do Tesseract. Passe `null` em `tesseractResult` quando o OCR não foi
+executado. Use `listPhotoMetadata(inicio, fim)` com objetos `Date` para consultar
+por horário de captura. O início é inclusivo e o fim é exclusivo.
+
+## Análise das fotos
+
+Suba o serviço com `docker compose up -d --build --wait vision-service`.
+O build inclui o YOLOv8n treinado em COCO e o Tesseract com português e inglês.
+A análise roda em CPU, e o serviço fica disponível na rede interna em
+`http://vision-service:8000`.
+
+Envie o JPEG original no corpo de `POST /analyze`, com
+`Content-Type: image/jpeg`. Para testar com um arquivo local sem publicar
+a porta do serviço, execute:
+
+```bash
+docker compose exec -T vision-service python -c '
+import sys
+from urllib.request import Request, urlopen
+
+request = Request("http://127.0.0.1:8000/analyze", data=sys.stdin.buffer.read(),
+                  headers={"Content-Type": "image/jpeg"})
+with urlopen(request, timeout=120) as response:
+    print(response.read().decode())
+' < foto.jpg
+```
+
+A lista `yoloResult` inclui apenas `cup`, `vase` e `potted plant`, com
+`className`, `confidence` e `bbox` em pixels `[x1, y1, x2, y2]` após aplicar
+a orientação EXIF. Com a lista vazia, `tesseractResult` é `null`. Se houver
+uma detecção, o Tesseract lê a foto inteira uma vez e retorna
+`{"text": ""}` quando não encontra texto, ou o texto reconhecido nesse campo.
+O serviço retorna `415` para um tipo de mídia incompatível, `400` para um
+JPEG inválido e `500` se a análise falhar.
+
+Para rodar os testes da rota no contêiner, execute
+`docker compose exec -T vision-service python - < vision-service/test_app.py`.
+
+## Leituras do InfluxDB
+
+Para subir somente o banco de leituras, execute
+`docker compose up -d --wait influxdb`. Na primeira inicialização, o bucket
+`horticultura` recebe seis pontos na measurement `measurements`, de
+`2026-11-17T12:00:00Z` a `2026-11-17T12:50:00Z`, a cada 10 minutos.
+Cada ponto contém `temperature` em °C, `humidity` em %, `pressure` em Pa
+e `rssi` (sinal do sensor).
+
+Emita um token com permissão apenas de leitura do bucket. O comando usa a
+configuração administrativa criada dentro do contêiner na inicialização.
+
+```bash
+docker compose exec -T influxdb sh -ec '
+  bucket_id=$(influx bucket list --org horticultura-local --name horticultura --hide-headers | cut -f1)
+  influx auth create --org horticultura-local --read-bucket "${bucket_id:?bucket horticultura ausente}" --description influx-check
+'
+```
+
+Copie o token retornado para `INFLUX_TOKEN` no `.env`. Guarde as
+credenciais locais e da VPS somente no `.env`, que é ignorado pelo Git.
+
+```bash
+docker compose run --rm influx-check
+```
+
+A consulta exibe a última leitura de cada campo por série. Na amostra local,
+os quatro resultados têm o horário `2026-11-17T12:50:00Z`.
+
+Para consultar um período pelo serviço de dados, informe o início e o fim em
+ISO 8601 UTC. Este comando retorna as seis leituras da amostra.
+
+```bash
+docker compose --profile tools build influx-query
+docker compose run --rm -T influx-query 2026-11-17T12:00:00Z 2026-11-17T13:00:00Z
+```
+
+Cada leitura traz `timestamp`, `temperature` (°C), `humidity` (% de umidade
+relativa), `pressure` (Pa) e `rssi` (sinal do sensor). O início é inclusivo e o
+fim é exclusivo. Campos ausentes aparecem como `null` e períodos vazios
+retornam `[]`.
+
+### Usar a VPS do professor
+
+Preencha `INFLUX_HOST` com o endereço da VPS, `INFLUX_ORG` com a organização
+e `INFLUX_TOKEN` com o token de leitura fornecido pelo professor. Execute
+`docker compose up -d data-service` e `docker compose restart nginx` para
+aplicar as alterações à API.
+Para verificar a conexão pelo terminal, execute
+`docker compose run --rm -T influx-query` com as datas desejadas. A API e o
+comando consultam o bucket `horticultura`.
 
 ## Rotas do autenticador
 
@@ -37,6 +287,64 @@ Todas passam pelo Nginx em `http://localhost:8080`.
 
 O token vai no cabeçalho `Authorization: Bearer <token>`.
 O login aceita no máximo 10 tentativas a cada 15 minutos por IP.
+
+### Perfis de cliente e administrador
+
+O cadastro público cria clientes (`isAdmin: false`). O operador do ambiente
+pode promover uma conta existente. Confirme o e-mail da conta antes de executar
+o comando. A conta promovida aparece no resultado com `is_admin = t`.
+
+```bash
+ADMIN_EMAIL='admin@exemplo.com'
+docker compose exec -T auth-db psql -U auth -d auth \
+    -v ON_ERROR_STOP=1 -v admin_email="$ADMIN_EMAIL" <<'SQL'
+UPDATE users
+SET is_admin = true
+WHERE email = :'admin_email'
+RETURNING id, email, is_admin;
+SQL
+```
+
+Se o comando retornar `UPDATE 0`, confira se o e-mail corresponde exatamente ao
+da conta cadastrada. O endpoint `GET /api/user/me` informa o perfil atual.
+O JWT emitido pelo login inclui `isAdmin` com o perfil no momento da emissão.
+Após a promoção, faça login novamente para atualizar o JWT.
+
+## Coleção de testes no Bruno
+
+A coleção em [`bruno/`](bruno/) testa a API pelo Nginx em
+`http://localhost:8080`. Suba a stack e configure o token de leitura do
+InfluxDB antes da execução. Cadastre duas contas conforme o
+[roteiro de demonstração](#roteiro-de-demonstração) e
+[promova uma delas](#perfis-de-cliente-e-administrador).
+
+Na raiz do repositório, copie a configuração de exemplo.
+
+```bash
+cp -n bruno/environments/exemplo.bru bruno/environments/local.bru
+```
+
+Em `bruno/environments/local.bru`, preencha os e-mails e as senhas das duas
+contas. O Git ignora esse arquivo. Ajuste `baseUrl` se a demonstração usar
+outro endereço do Nginx. O período padrão coincide com as leituras locais
+de exemplo e inclui a captura do JPEG sintético que acompanha a coleção
+(`2026-11-17T12:30:00Z`). Se alterar o período, mantenha esse instante no
+intervalo.
+
+No aplicativo Bruno, abra a pasta `bruno/`, selecione o ambiente `local`
+e rode a coleção inteira em sequência. No terminal, rode o comando abaixo
+com o Bruno CLI. A coleção foi validada na versão 4.3.0.
+[Documentação do Bruno CLI](https://docs.usebruno.com/bru-cli/overview)
+
+```bash
+cd bruno
+bru run --env local
+```
+
+As requisições reutilizam os tokens dos dois logins e o ID do upload na mesma
+execução. Cada rodada bem-sucedida grava um novo registro de foto. A suíte faz
+três tentativas de login por rodada, sujeitas ao limite do autenticador de
+dez tentativas a cada 15 minutos por IP.
 
 ## Roteiro de demonstração
 

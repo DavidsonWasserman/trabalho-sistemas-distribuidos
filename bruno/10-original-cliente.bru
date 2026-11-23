@@ -1,0 +1,23 @@
+meta {
+  name: Cliente recupera o JPEG original
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/api/photos/{{photoId}}/original
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{clientToken}}
+}
+
+tests {
+  test("Retorna o original como imagem JPEG", function () {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getHeader("content-type")).to.match(/^image\/jpeg\b/i);
+    expect(res.getBody()).to.have.property("length").greaterThan(0);
+  });
+}

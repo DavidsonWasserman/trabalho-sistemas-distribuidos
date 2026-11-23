@@ -1,0 +1,42 @@
+meta {
+  name: Administrador envia JPEG
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/photos
+  body: file
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{adminToken}}
+}
+
+body:file {
+  file: @file(fixtures/foto-exif.jpg) @contentType(image/jpeg)
+}
+
+settings {
+  timeout: 180000
+}
+
+tests {
+  test("Cria a foto com o horário EXIF e os campos da análise", function () {
+    expect(res.getStatus()).to.equal(201);
+    const photo = res.getBody();
+    expect(photo.id).to.be.a("number").and.be.greaterThan(0);
+    expect(photo.capturedAt).to.equal("2026-11-17T12:30:00.000Z");
+    expect(photo.originalBucket).to.equal("fotos");
+    expect(photo.originalKey).to.match(/\.jpg$/);
+    expect(photo.yoloResult).to.be.an("array");
+    if (photo.yoloResult.length === 0) {
+      expect(photo.tesseractResult).to.equal(null);
+    } else {
+      expect(photo.tesseractResult.text).to.be.a("string");
+    }
+    bru.setVar("photoId", photo.id);
+    bru.setVar("uploadedPhoto", photo);
+  });
+}

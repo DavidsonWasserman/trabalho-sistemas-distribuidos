@@ -1,0 +1,18 @@
+{
+  "identities": [
+    {
+      "name": "consulta",
+      "credentials": [
+        { "accessKey": "fotos-consulta", "secretKey": "troque-pelo-segredo-de-consulta" }
+      ],
+      "actions": ["Read:fotos", "List:fotos"]
+    },
+    {
+      "name": "envio",
+      "credentials": [
+        { "accessKey": "fotos-envio", "secretKey": "troque-pelo-segredo-de-envio" }
+      ],
+      "actions": ["Write:fotos"]
+    }
+  ]
+}
